@@ -1,0 +1,12 @@
+{
+  "manifest_version": 3,
+  "name": "YouTube Dual Subtitles",
+  "version": "0.0.1",
+  "description": "Two independent, draggable, styleable subtitle tracks on YouTube.",
+  "permissions": ["storage"],
+  "host_permissions": ["https://www.youtube.com/*"],
+  "action": { "default_popup": "popup/popup.html" },
+  "content_scripts": [
+    { "matches": ["https://www.youtube.com/*"], "js": ["content.js"], "run_at": "document_idle" }
+  ]
+}
