@@ -1,0 +1,21 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`parseTimedText output matches approved snapshot 1`] = `
+[
+  {
+    "end": 2,
+    "start": 0.5,
+    "text": "Hello & welcome",
+  },
+  {
+    "end": 4.25,
+    "start": 2,
+    "text": "It's a test",
+  },
+  {
+    "end": 5.5,
+    "start": 4.5,
+    "text": "<end>",
+  },
+]
+`;
