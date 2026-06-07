@@ -7,6 +7,7 @@
   "host_permissions": ["https://www.youtube.com/*"],
   "action": { "default_popup": "popup/popup.html" },
   "content_scripts": [
+    { "matches": ["https://www.youtube.com/*"], "js": ["bridge.js"], "run_at": "document_start", "world": "MAIN" },
     { "matches": ["https://www.youtube.com/*"], "js": ["content.js"], "run_at": "document_idle" }
   ]
 }

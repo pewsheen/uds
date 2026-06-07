@@ -1,11 +1,11 @@
-import type { Fraction, MountTarget, Rect, Size, VEdge } from '../core/types'
+import type { Anchor, Fraction, MountTarget, Rect, Size, VEdge } from '../core/types'
 import { computeBoxRect } from '../core/geometry'
 
 export type BoxView = {
   el: HTMLElement
   setText: (text: string | null) => void
   setStyle: (css: Record<string, string>) => void
-  place: (f: Fraction, refBox: Rect, vEdge: VEdge) => void
+  place: (f: Fraction, refBox: Rect, vEdge: VEdge, anchor: Anchor) => void
   measure: () => Size
   remove: () => void
 }
@@ -34,12 +34,12 @@ export function createRenderer(doc: Document = document) {
       el,
       setText: (text) => { el.style.display = text ? 'block' : 'none'; el.textContent = text ?? '' },
       setStyle: (css) => { Object.assign(el.style, css) },
-      place: (f, refBox, vEdge) => {
+      place: (f, refBox, vEdge, anchor) => {
         const size = { width: el.offsetWidth, height: el.offsetHeight }
         const r = computeBoxRect(f, refBox, size, vEdge)
         el.style.left = `${r.x}px`
         el.style.top = `${r.y}px`
-        el.dataset.anchor = f.fx >= 0 && f.fx <= 1 ? 'video-or-page' : 'page'
+        el.dataset.anchor = anchor
         el.dataset.vedge = vEdge
       },
       measure: () => ({ width: el.offsetWidth, height: el.offsetHeight }),

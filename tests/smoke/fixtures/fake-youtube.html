@@ -1,0 +1,24 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Fake YouTube</title>
+<style>#movie_player{position:relative;width:800px;height:450px;background:#111;margin:20px}</style>
+</head>
+<body>
+  <ytd-watch-flexy>
+    <div id="movie_player" class="html5-video-player">
+      <video class="html5-main-video" src=""></video>
+    </div>
+  </ytd-watch-flexy>
+  <script>
+    window.ytInitialPlayerResponse = {
+      captions: { playerCaptionsTracklistRenderer: { captionTracks: [
+        { baseUrl: 'https://www.youtube.com/api/timedtext?v=fixture&lang=en' }
+      ] } }
+    }
+    // Set the NATIVE currentTime so the isolated-world content script (which reads the
+    // native media getter) observes the change. Do NOT use Object.defineProperty here:
+    // a JS-level override only exists in this (main) world and never reaches the element
+    // the content script reads, leaving its currentTime stuck at 0.
+    const v = document.querySelector('video')
+    window.__setTime = (t) => { v.currentTime = t }
+  </script>
+</body></html>

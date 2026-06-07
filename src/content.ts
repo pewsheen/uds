@@ -12,13 +12,38 @@ import { createStorageAdapter } from './adapters/storage'
 import { createPlayerAdapter } from './adapters/player'
 import { createRenderer, type BoxView } from './adapters/renderer'
 
-async function findTrackBaseUrl(): Promise<string | null> {
-  // YouTube exposes caption tracks via the player response. Read the first track's baseUrl.
-  const pr = (window as unknown as { ytInitialPlayerResponse?: unknown }).ytInitialPlayerResponse as
-    | { captions?: { playerCaptionsTracklistRenderer?: { captionTracks?: { baseUrl: string }[] } } }
-    | undefined
+type PlayerResponse =
+  | { captions?: { playerCaptionsTracklistRenderer?: { captionTracks?: { baseUrl: string }[] } } }
+  | undefined
+
+function baseUrlFromResponse(pr: PlayerResponse): string | null {
   const tracks = pr?.captions?.playerCaptionsTracklistRenderer?.captionTracks
   return tracks && tracks.length > 0 ? tracks[0]!.baseUrl : null
+}
+
+// `ytInitialPlayerResponse` is a page (main-world) global. A content script runs in an
+// isolated world and cannot read it directly. The MAIN-world bridge content script
+// (bridge.js, declared in the manifest) copies it into this DOM attribute for us to read.
+const BRIDGE_ATTR = 'data-dual-subs-pr'
+
+function readBridgeResponse(): PlayerResponse {
+  const raw = document.documentElement.getAttribute(BRIDGE_ATTR)
+  if (!raw) return undefined
+  try { return JSON.parse(raw) as PlayerResponse } catch { return undefined }
+}
+
+async function findTrackBaseUrl(): Promise<string | null> {
+  // Prefer the isolated-world global (covers pages where the script can see it directly).
+  const direct = (window as unknown as { ytInitialPlayerResponse?: PlayerResponse }).ytInitialPlayerResponse
+  const fromDirect = baseUrlFromResponse(direct)
+  if (fromDirect) return fromDirect
+  // Otherwise wait for the MAIN-world bridge to publish the player response (the real YouTube case).
+  for (let i = 0; i < 100; i++) {
+    const fromBridge = baseUrlFromResponse(readBridgeResponse())
+    if (fromBridge) return fromBridge
+    await new Promise((r) => setTimeout(r, 50))
+  }
+  return null
 }
 
 async function main() {
@@ -58,7 +83,7 @@ async function main() {
       tickStates[box.id] = res.state
       if (res.renderCommand) views[box.id]!.setText(res.renderCommand.text)
       const place = box.posByMode[player.displayMode()]
-      views[box.id]!.place({ fx: place.fx, fy: place.fy }, player.playerRect(), place.vEdge)
+      views[box.id]!.place({ fx: place.fx, fy: place.fy }, player.playerRect(), place.vEdge, place.anchor)
     }
     requestAnimationFrame(render)
   }
@@ -83,7 +108,7 @@ async function main() {
       const size = view.measure()
       const vp = { width: document.documentElement.clientWidth, height: document.documentElement.clientHeight }
       f = clampFraction(f, refBox, size, vEdge, vp, 8)
-      view.place(f, refBox, vEdge)
+      view.place(f, refBox, vEdge, anchor)
       stash(box, anchor, vEdge, f)
     })
     view.el.addEventListener('pointerup', () => {

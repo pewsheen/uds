@@ -4,7 +4,7 @@ import { cpSync, mkdirSync } from 'node:fs'
 mkdirSync('dist/popup', { recursive: true })
 
 await build({
-  entryPoints: ['src/content.ts', 'src/popup/popup.ts'],
+  entryPoints: ['src/content.ts', 'src/bridge.ts', 'src/popup/popup.ts'],
   bundle: true,
   format: 'esm',
   target: 'chrome120',
