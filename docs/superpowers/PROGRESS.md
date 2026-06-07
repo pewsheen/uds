@@ -1,8 +1,8 @@
 # Build Progress / Handoff — YouTube Dual Subtitles
 
 > **Updated:** 2026-06-07
-> **State:** Tasks 1–14 of 25 complete. Pure core done & hardened. `npm run verify` GREEN.
-> **HEAD:** `057b721` · **Tests:** 22 files / 38 passing · **Branch:** default (from `git init`)
+> **State:** ✅ All 25 tasks complete + fullscreen-remount follow-up. `npm run verify:full` exits 0.
+> **HEAD:** `5af34a4` · **Tests:** 53 unit/property/contract + 1 golden + 2 smoke; mutation 96.39% (core, gate 85%) · **Branch:** master (from `git init`)
 
 This project is a greenfield MV3 Chrome extension (two independent, draggable, styleable subtitle boxes on YouTube via `timedtext` + `tlang`) built behind a **rigor harness** so an agent can self-iterate. Architecture: pure `src/core/**` (no `chrome`/`document`/`window`/`fetch`, lint-enforced) + thin `src/adapters/**`.
 
@@ -41,18 +41,18 @@ Pure core is mutation-ready. Stryker has **not** been run yet.
 - `entities.ts` regex is `/&(#[xX]?[0-9a-fA-F]+|[a-zA-Z]+);/g`; codepoint guarded to `0..0x10ffff`.
 - `.gstack/` is gitignored.
 
-## ⏳ Remaining (Tasks 15–25) — implement per the plan's exact code
-- **T15** `net` adapter + contract test
-- **T16** `storage` adapter (+ `DEFAULT_SETTINGS`) + contract test
-- **T17** `player` / `renderer` / `clock` adapters (thin; covered by smoke)
-- **T18** `content.ts` composition root
-- **T19** popup UI (`popup.html` + `popup.ts`)
-- **T20** `manifest.json` (MV3) + `build.mjs` (esbuild → `dist/`)
-- **T21** Playwright smoke (`playwright.config.ts` + `tests/smoke/fixtures/*` + `extension.spec.ts`)
-- **T22** golden test for parser
-- **T23** Stryker mutation config + run (core ≥ 85% — this empirically confirms the review→fix hardening)
-- **T24** error-path tests
-- **T25** CI (`.github/workflows/verify.yml`) + `docs/DONE.md` (Definition of Done + requirement↔test map)
+## ✅ Done (Tasks 15–25 + follow-up), subagent-driven (impl → spec review → quality review)
+- **T15** `net` adapter + contract `e24238f` · **T16** `storage` + `DEFAULT_SETTINGS` `7664dcd` · **T17** player/renderer/clock `6fc53cc`
+- **T18** `content.ts` composition root `8ca6ee3` · **T19** popup UI `c42c7fa` · **T20** MV3 manifest + esbuild `3ae5ec2`
+- **T21** Playwright smoke `8b5f42f` — smoke surfaced & fixed 3 REAL bugs: (a) **MAIN-world bridge** (`src/bridge.ts`) — `ytInitialPlayerResponse` is a page global the isolated-world content script can't read, so a `world:"MAIN"` content script republishes it via `data-dual-subs-pr`; (b) renderer `place()` now threads the real `Anchor` (was a broken fx-heuristic clobbered each frame); (c) fixture native `currentTime`. Cleanup `f3b1b0b`.
+- **T22** golden `ac582aa` · **T23** Stryker `517499b` (96.39%, +8 mutant-killing tests, 11 genuine equivalents) · **T24** error-paths `cabefe4` · **T25** CI + `docs/DONE.md` `88dd6e6`
+- **Follow-up (CEO-requested):** fullscreen remount `5af34a4` — render loop now re-evaluates `decideMountTarget` every frame and `renderer.ensureMount` **moves** the layer (children preserved) into/out of the fullscreen element. 2nd smoke test drives REAL browser fullscreen.
+
+## Real-world dogfood findings (loaded `dist/` into Chromium vs live YouTube)
+- ✅ Confirmed working on real `youtube.com`: injection, MAIN-world bridge publish, player-response read, **31 caption tracks discovered**, timedtext URL built, fetch attempted — full pipeline up to the network call.
+- ⚠️ **Known robustness gap (NOT yet fixed):** `content.ts main()` awaits `net.fetchText` per box with **no try/catch** — a single failing track (observed HTTP 429 rate-limit from an unauthenticated automated browser; also 404 for a missing lang) throws an **unhandled** rejection and renders nothing. Fix: wrap per-box fetch in try/catch + degrade gracefully (skip that box; optional 429 backoff/retry). Recommend before real use.
+- ⚠️ Headless/unauthenticated browsers get bot-gated: age-restricted videos → `playabilityStatus: LOGIN_REQUIRED` (captions stripped); normal videos → timedtext 429. Real testing needs the user's logged-in Chrome (Load unpacked `dist/`).
+- Caption discovery relies solely on `ytInitialPlayerResponse...captionTracks`; absent under LOGIN_REQUIRED / could move to the innertube `/youtubei/v1/player` API. Possible future fallback.
 
 ## How to resume (subagent-driven execution)
 1. Read this file + the plan. Do **not** make subagents read the plan — paste each task's full text + context into the implementer prompt (templates: `~/.claude/plugins/cache/claude-plugins-official/superpowers/5.1.0/skills/subagent-driven-development/`).

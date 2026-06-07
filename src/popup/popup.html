@@ -1,11 +1,19 @@
 <!doctype html>
 <html><head><meta charset="utf-8">
-<style>body{font:14px system-ui;width:280px;padding:12px}label{display:block;margin:8px 0 2px}</style>
+<style>
+  body{font:14px system-ui;width:280px;padding:12px}
+  label{display:block;margin:8px 0 2px}
+  select,input[type=number]{width:100%;box-sizing:border-box;margin-top:2px}
+  #hint{color:#888;margin:10px 0 0;font-size:12px}
+  button{margin-top:10px}
+</style>
 </head><body>
-  <label><input type="checkbox" id="enabled"> Enable dual subtitles</label>
-  <label>Subtitle 1 language <input id="lang1" placeholder="en"></label>
-  <label>Subtitle 2 language <input id="lang2" placeholder="zh-Hant"></label>
+  <label><input type="checkbox" id="enabled" style="width:auto"> Enable dual subtitles</label>
+  <label><input type="checkbox" id="native" style="width:auto"> Also show YouTube's original subtitles</label>
+  <label>Subtitle 1 <select id="lang1"></select></label>
+  <label>Subtitle 2 <select id="lang2"></select></label>
   <label>Font size <input id="font" type="number" min="10" max="80"></label>
   <button id="save">Save</button>
+  <p id="hint"></p>
   <script type="module" src="popup.js"></script>
 </body></html>

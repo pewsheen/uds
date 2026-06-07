@@ -11,6 +11,7 @@
     "test:mutation": "stryker run",
     "build": "node build.mjs",
     "test:smoke": "playwright test",
+    "test:live": "node scripts/fs-remount-chromium.mjs",
     "verify": "npm run typecheck && npm run lint && npm run test:unit",
     "verify:full": "npm run verify && npm run test:golden && npm run test:mutation && npm run build && npm run test:smoke",
     "record": "node scripts/record.mjs"

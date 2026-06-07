@@ -16,6 +16,7 @@ function box(id: BoxConfig['id'], lang: string): BoxConfig {
 
 export const DEFAULT_SETTINGS: Settings = {
   enabled: true,
+  nativeSubtitles: false,
   boxes: [box('sub1', 'en'), box('sub2', 'zh-Hant')],
 }
 

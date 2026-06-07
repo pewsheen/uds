@@ -6,7 +6,7 @@ import path from 'node:path'
 const here = path.dirname(fileURLToPath(import.meta.url))
 const dist = path.resolve(here, '../../dist')
 const htmlPath = path.resolve(here, 'fixtures/fake-youtube.html')
-const xmlPath = path.resolve(here, 'fixtures/timedtext.xml')
+const json3Path = path.resolve(here, 'fixtures/timedtext.json3')
 
 let context: BrowserContext
 
@@ -22,17 +22,17 @@ test.beforeAll(async () => {
 })
 test.afterAll(async () => { await context.close() })
 
-// Serve the fixture page AS a youtube.com/watch document so the content-script
-// match pattern (https://www.youtube.com/*) actually fires, and serve the fixture
-// XML for both subtitle boxes' timedtext fetches.
+// Serve the fixture page AS a youtube.com/watch document so the content-script match
+// pattern (https://www.youtube.com/*) fires, and serve the fixture json3 for the
+// caption fetches the fixture makes (which the bridge captures and forwards).
 async function routeFixtures(page: import('@playwright/test').Page) {
   await page.route('https://www.youtube.com/watch*', async (route) => {
     const html = await readFile(htmlPath, 'utf8')
     await route.fulfill({ status: 200, contentType: 'text/html', body: html })
   })
   await page.route('**/api/timedtext**', async (route) => {
-    const xml = await readFile(xmlPath, 'utf8')
-    await route.fulfill({ status: 200, contentType: 'text/xml', body: xml })
+    const json = await readFile(json3Path, 'utf8')
+    await route.fulfill({ status: 200, contentType: 'application/json', body: json })
   })
 }
 
@@ -86,6 +86,41 @@ test('injects, renders both boxes, syncs, drags', async () => {
   await page.mouse.up()
 
   await expect(draggable).toHaveAttribute('data-anchor', 'page')
+})
+
+test('one failing caption track does not tear down the whole overlay', async () => {
+  const page = await context.newPage()
+  const errors: string[] = []
+  page.on('pageerror', (e) => errors.push(String(e)))
+
+  await page.route('https://www.youtube.com/watch*', async (route) => {
+    const html = await readFile(htmlPath, 'utf8')
+    await route.fulfill({ status: 200, contentType: 'text/html', body: html })
+  })
+  // The English track succeeds; the zh-Hant track is rate-limited (429).
+  // A single failing track must NOT tear down the whole overlay (its body parses
+  // to zero cues, so that box just stays empty).
+  await page.route('**/api/timedtext**', async (route) => {
+    const url = new URL(route.request().url())
+    if (url.searchParams.get('lang') === 'zh-Hant') {
+      await route.fulfill({ status: 429, contentType: 'text/plain', body: 'rate limited' })
+      return
+    }
+    const json = await readFile(json3Path, 'utf8')
+    await route.fulfill({ status: 200, contentType: 'application/json', body: json })
+  })
+
+  await page.goto('https://www.youtube.com/watch?v=fixture')
+
+  // The overlay still mounts: layer + BOTH boxes present despite the 429.
+  await expect(page.locator('#dual-subs-layer')).toBeAttached({ timeout: 10000 })
+  await expect(page.locator('.dual-subs-box')).toHaveCount(2)
+  // The 429 is swallowed per-box, not surfaced as an unhandled rejection.
+  expect(errors, errors.join('\n')).toHaveLength(0)
+
+  // The surviving track still renders its cue.
+  await page.evaluate(() => (window as unknown as { __setTime: (t: number) => void }).__setTime(1))
+  await expect(page.locator('.dual-subs-box').first()).toContainText('Hello from the fixture')
 })
 
 test('re-parents the subtitle layer into the fullscreen element on fullscreen', async () => {

@@ -21,14 +21,20 @@ export type BoxConfig = {
   style: StyleSettings
   posByMode: Record<DisplayMode, Placement>
 }
-export type Settings = { enabled: boolean; boxes: [BoxConfig, BoxConfig] }
+export type Settings = {
+  enabled: boolean
+  boxes: [BoxConfig, BoxConfig]
+  // When true, keep YouTube's own caption layer visible instead of hiding it.
+  nativeSubtitles?: boolean
+}
 
 export type Point = { x: number; y: number }
 export type Size = { width: number; height: number }
 export type Rect = { x: number; y: number; width: number; height: number }
 export type Fraction = { fx: number; fy: number }
 
-export type Track = { baseUrl: string }
+// A caption track the video actually offers (from ytInitialPlayerResponse).
+export type CaptionTrack = { baseUrl: string; languageCode: string; name?: string }
 
 export type LifecycleState =
   | { kind: 'idle' }

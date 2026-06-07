@@ -1,5 +1,12 @@
 import type { Cue } from './types'
 import { decodeEntities } from './entities'
+import { parseJson3 } from './parse-json3'
+
+// Caption bodies come from the player in either json3 (default) or srv1 XML.
+// Sniff the first non-space char to pick the right parser.
+export function parseCaptions(body: string): Cue[] {
+  return body.trimStart().startsWith('{') ? parseJson3(body) : parseTimedText(body)
+}
 
 const ROW = /<text\s+start="([\d.]+)"\s+dur="([\d.]+)"[^>]*>([\s\S]*?)<\/text>/g
 

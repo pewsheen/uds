@@ -11,7 +11,8 @@
   <script>
     window.ytInitialPlayerResponse = {
       captions: { playerCaptionsTracklistRenderer: { captionTracks: [
-        { baseUrl: 'https://www.youtube.com/api/timedtext?v=fixture&lang=en' }
+        { baseUrl: 'https://www.youtube.com/api/timedtext?v=fixture&lang=en', languageCode: 'en', name: { simpleText: 'English' } },
+        { baseUrl: 'https://www.youtube.com/api/timedtext?v=fixture&lang=zh-Hant', languageCode: 'zh-Hant', name: { simpleText: 'Chinese (Traditional)' } }
       ] } }
     }
     // Set the NATIVE currentTime so the isolated-world content script (which reads the
@@ -20,6 +21,11 @@
     // the content script reads, leaving its currentTime stuck at 0.
     const v = document.querySelector('video')
     window.__setTime = (t) => { v.currentTime = t }
+    // Simulate the player loading its caption tracks. The MAIN-world bridge intercepts
+    // these timedtext responses and forwards them to the content script — exactly as it
+    // captures the real player's authenticated (pot-bearing) responses on youtube.com.
+    fetch('https://www.youtube.com/api/timedtext?v=fixture&lang=en&fmt=json3').catch(() => {})
+    fetch('https://www.youtube.com/api/timedtext?v=fixture&lang=zh-Hant&fmt=json3').catch(() => {})
   </script>
   <button id="go-fs">fullscreen</button>
   <script>
