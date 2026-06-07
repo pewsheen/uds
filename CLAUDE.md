@@ -42,6 +42,20 @@ cannot fetch captions yourself, and `tlang` self-translation also returns empty.
   player path).
 - `npm run test:live` + `scripts/validate-*.mjs` — **real-environment** drivers (open real
   youtube.com in bundled Chromium). Keep these; they are first-class.
+- **You CAN run a full live test of the extension yourself — no human needed.** Build (`node
+  build.mjs`), then drive real youtube.com in bundled Chromium with `dist/` loaded. The
+  pot/BotGuard wall is sidestepped by **routing `**/api/timedtext**` to a substituted json3
+  body** (stamp it per video id / language so swaps are provable). With that, caption
+  *rendering* and ALL plumbing — injection, bridge re-publish, track discovery, per-video
+  re-init on SPA nav, drag, fullscreen — are verifiable unattended. Only real pot-gated
+  caption *bodies* still need a logged-in non-automated browser. **Default to verifying your
+  fix this way instead of asking the user to test by hand.** Example/driver:
+  `npm run test:live:nav` (`scripts/validate-nav.mjs`) does real in-page SPA navigation
+  between recommended videos and asserts tracks + captions refresh without a reload.
+  - **Ads break naive assertions.** A pre-roll ad loads as a *separate* video first:
+    `getPlayerResponse()` / `currentTime` / track list reflect the AD, not your video, until
+    it ends. Skip it (`.ytp-ad-skip-button`, `.ytp-ad-skip-button-modern`) or seek the ad
+    `<video>` to its end, and keep polling — never assert on the first few seconds after load.
 - **TDD is the default**: write the failing test first (see `superpowers:test-driven-development`).
 
 ## Environment gotchas (cost real debugging time — don't relearn them)

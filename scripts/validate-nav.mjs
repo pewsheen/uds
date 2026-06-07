@@ -30,9 +30,26 @@ const videoIdOfAttr = () =>
 const boxText = () =>
   ctx.pages()[0].evaluate(() => [...document.querySelectorAll('.dual-subs-box')].map((b) => b.textContent))
 
+// A pre-roll ad loads as a SEPARATE video first: the player API, currentTime and track
+// list reflect the ad, not the real video, until it ends. Skip it (or seek the ad video
+// to its end) so assertions see the real video. No-op when no ad is playing.
+const skipAds = () =>
+  ctx.pages()[0].evaluate(() => {
+    const btn = document.querySelector('.ytp-ad-skip-button, .ytp-ad-skip-button-modern, .ytp-skip-ad-button')
+    if (btn) { btn.click(); return 'skipped' }
+    const adShowing = document.querySelector('.ad-showing, .ytp-ad-player-overlay, .ytp-ad-player-overlay-layout')
+    if (adShowing) {
+      const v = document.querySelector('video')
+      if (v && isFinite(v.duration) && v.duration > 0) v.currentTime = v.duration // fast-forward the ad
+      return 'ad-playing'
+    }
+    return null
+  }).catch(() => null)
+
 async function waitFor(fn, label, ms = 25000) {
   const start = Date.now()
   while (Date.now() - start < ms) {
+    await skipAds() // ads can appear at any time during a wait; clear them each poll
     const v = await fn()
     if (v) return v
     await ctx.pages()[0].waitForTimeout(500)
