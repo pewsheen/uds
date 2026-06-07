@@ -123,6 +123,46 @@ test('one failing caption track does not tear down the whole overlay', async () 
   await expect(page.locator('.dual-subs-box').first()).toContainText('Hello from the fixture')
 })
 
+test('SPA navigation to a new video swaps captions without a page reload', async () => {
+  const page = await context.newPage()
+  const errors: string[] = []
+  page.on('pageerror', (e) => errors.push(String(e)))
+
+  await page.route('https://www.youtube.com/watch*', async (route) => {
+    const html = await readFile(htmlPath, 'utf8')
+    await route.fulfill({ status: 200, contentType: 'text/html', body: html })
+  })
+  // Serve distinct caption text per video so we can prove the SWAP happened, not just
+  // that some text rendered. video2's first cue is unmistakably different.
+  await page.route('**/api/timedtext**', async (route) => {
+    const v = new URL(route.request().url()).searchParams.get('v')
+    const body =
+      v === 'video2'
+        ? '{"events":[{"tStartMs":0,"dDurationMs":9000,"segs":[{"utf8":"Second video caption"}]}]}'
+        : await readFile(json3Path, 'utf8')
+    await route.fulfill({ status: 200, contentType: 'application/json', body })
+  })
+
+  await page.goto('https://www.youtube.com/watch?v=fixture')
+
+  const firstBox = page.locator('.dual-subs-box').first()
+  await expect(page.locator('#dual-subs-layer')).toBeAttached({ timeout: 10000 })
+
+  // First video renders its caption.
+  await page.evaluate(() => (window as unknown as { __setTime: (t: number) => void }).__setTime(1))
+  await expect(firstBox).toContainText('Hello from the fixture')
+
+  // Navigate to a different video the way YouTube does — no document reload.
+  await page.evaluate(() => (window as unknown as { __navigate: (id: string) => void }).__navigate('video2'))
+
+  // The box must pick up the NEW video's caption on its own (no reload, no CC toggle).
+  await page.evaluate(() => (window as unknown as { __setTime: (t: number) => void }).__setTime(1))
+  await expect(firstBox).toContainText('Second video caption', { timeout: 10000 })
+  // And the previous video's text must be gone.
+  await expect(firstBox).not.toContainText('Hello from the fixture')
+  expect(errors, errors.join('\n')).toHaveLength(0)
+})
+
 test('re-parents the subtitle layer into the fullscreen element on fullscreen', async () => {
   const page = await context.newPage()
   const errors: string[] = []

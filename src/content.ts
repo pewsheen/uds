@@ -7,13 +7,17 @@ import { styleToCss } from './core/style'
 import { decideMountTarget } from './core/mount'
 import { pickTrack } from './core/track-select'
 import { parseCaptions } from './core/parse'
+import { parseWatchId, videoChanged } from './core/navigation'
 import { createStorageAdapter } from './adapters/storage'
 import { createPlayerAdapter } from './adapters/player'
 import { createRenderer, type BoxView } from './adapters/renderer'
 
 type CaptionTrackRaw = { baseUrl: string; languageCode: string; name?: { simpleText?: string }; kind?: string }
 type PlayerResponse =
-  | { captions?: { playerCaptionsTracklistRenderer?: { captionTracks?: CaptionTrackRaw[] } } }
+  | {
+      captions?: { playerCaptionsTracklistRenderer?: { captionTracks?: CaptionTrackRaw[] } }
+      videoDetails?: { videoId?: string }
+    }
   | undefined
 
 function tracksFromResponse(pr: PlayerResponse): CaptionTrack[] {
@@ -32,10 +36,24 @@ function readBridgeResponse(): PlayerResponse {
   try { return JSON.parse(raw) as PlayerResponse } catch { return undefined }
 }
 
-async function findTracks(): Promise<CaptionTrack[]> {
-  for (let i = 0; i < 100; i++) {
-    const tracks = tracksFromResponse(readBridgeResponse())
-    if (tracks.length > 0) return tracks
+// Resolve the published response into tracks for a *specific* video, defeating the
+// stale-read race after an SPA navigation: until the bridge re-publishes the new
+// video's response (stamped with its videoId), we keep waiting instead of returning
+// the previous video's tracks. `null` means "not ready yet"; `[]` means "this video
+// genuinely has no captions" (response matched but carried no tracks).
+function currentTracks(expectId: string | null): CaptionTrack[] | null {
+  const pr = readBridgeResponse()
+  const id = pr?.videoDetails?.videoId
+  if (expectId && id && id !== expectId) return null // bridge still on the old video
+  const tracks = tracksFromResponse(pr)
+  if (tracks.length > 0) return tracks
+  return expectId && id === expectId ? [] : null // definitively empty only once the id matches
+}
+
+async function findTracksFor(expectId: string | null, attempts = 100): Promise<CaptionTrack[]> {
+  for (let i = 0; i < attempts; i++) {
+    const tracks = currentTracks(expectId)
+    if (tracks !== null) return tracks
     await new Promise((r) => setTimeout(r, 50))
   }
   return []
@@ -46,26 +64,22 @@ async function main() {
   const player = createPlayerAdapter()
   const renderer = createRenderer()
 
-  // Let the popup discover which caption languages this video offers.
+  // Let the popup discover which caption languages this video offers. Gate on the
+  // current video id so an SPA navigation can't serve the previous video's list.
   chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     if (!msg || (msg as { type?: string }).type !== 'dual-subs:getTracks') return
     void (async () => {
-      for (let i = 0; i < 40; i++) {
-        const tracks = tracksFromResponse(readBridgeResponse())
-        if (tracks.length > 0) {
-          sendResponse(tracks.map((t) => ({ languageCode: t.languageCode, name: t.name, kind: t.kind })))
-          return
-        }
-        await new Promise((r) => setTimeout(r, 50))
-      }
-      sendResponse([])
+      const tracks = await findTracksFor(parseWatchId(location.href), 40)
+      sendResponse(tracks.map((t) => ({ languageCode: t.languageCode, name: t.name, kind: t.kind })))
     })()
     return true
   })
 
   const settings: Settings = await store.load()
-  const tracks = await findTracks()
-  if (tracks.length === 0) return // video has no captions → nothing to mount
+  // `tracks` is the CURRENT video's caption tracks. It is refreshed on every SPA
+  // navigation (YouTube swaps videos without a reload), so it must be mutable and
+  // outlive any single video — the caption listener and loader both read it.
+  let tracks: CaptionTrack[] = []
 
   const cuesByBox: Record<string, Cue[]> = {}
   const views: Record<string, BoxView> = {}
@@ -112,7 +126,9 @@ async function main() {
       }
     }
   })
-  window.postMessage({ __dualSubsReady: true }, '*') // replay anything fetched pre-listener
+  // NOTE: the replay request (`__dualSubsReady`) is issued from loadVideo() AFTER the
+  // current video's `tracks` are known — replaying earlier would match captured cues
+  // against an empty track list and silently drop them.
 
   // Hide YouTube's own caption text so it doesn't overlap our boxes — only while enabled.
   const hideNative = document.createElement('style')
@@ -191,7 +207,44 @@ async function main() {
     }
   }
 
-  if (settings.enabled) { setNativeHidden(!settings.nativeSubtitles); void startLoading() }
+  // Per-video (re)initialization. Runs on first load and again on every SPA
+  // navigation to a new video. `navGen` discards a load whose video was superseded
+  // by a newer navigation before its tracks finished resolving.
+  let navGen = 0
+  let currentVideoId: string | null = parseWatchId(location.href)
+  async function loadVideo() {
+    const myNav = ++navGen
+    loadGen++ // cancel any caption loading still in flight for the previous video
+    for (const box of settings.boxes) {
+      cuesByBox[box.id] = []
+      tickStates[box.id] = initTick() // reset cue cursor so the old video's text can't linger
+    }
+    const fresh = await findTracksFor(currentVideoId)
+    if (myNav !== navGen) return // a newer navigation took over while we waited
+    tracks = fresh
+    // Now that tracks are known, ask the bridge to replay any caption responses it
+    // captured before we were ready to match them (initial load + post-navigation).
+    window.postMessage({ __dualSubsReady: true }, '*')
+    if (settings.enabled) {
+      setNativeHidden(!settings.nativeSubtitles)
+      void startLoading()
+    }
+  }
+
+  // YouTube swaps videos via its Polymer router (no document reload). Detect it two
+  // ways for robustness: the page's own `yt-navigate-finish` event (a custom DOM event
+  // visible to this isolated-world content script), plus a cheap URL poll as a fallback
+  // in case the cross-world event doesn't reach us on some YouTube/Chrome versions.
+  function onMaybeNavigated() {
+    const next = parseWatchId(location.href)
+    const changed = videoChanged(currentVideoId, next)
+    currentVideoId = next
+    if (changed) void loadVideo()
+  }
+  document.addEventListener('yt-navigate-finish', onMaybeNavigated)
+  setInterval(onMaybeNavigated, 1000)
+
+  if (currentVideoId) void loadVideo()
 
   function attachDrag(box: BoxConfig, view: BoxView) {
     // Swallow pointer/click events so they never reach YouTube's player (otherwise a
