@@ -42,7 +42,7 @@ export type LifecycleEvent =
   | { type: 'retry' }
   | { type: 'disable' }
 
-export type TickState = { activeText: string | null }
+export type TickState = { activeText: string | null; emitted: boolean }
 export type RenderCommand = { text: string | null }
 
 export type MountTarget = { kind: 'fullscreen' } | { kind: 'overlayLayer' }

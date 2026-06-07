@@ -25,3 +25,19 @@ test('clampFraction keeps the rendered box inside the viewport', () => {
   expect(r.x + r.width).toBeLessThanOrEqual(1000 - 8 + 0.001)
   expect(r.y + r.height).toBeLessThanOrEqual(500 - 8 + 0.001)
 })
+
+test('computeBoxRect: top edge pins to fy and grows down', () => {
+  const r = computeBoxRect({ fx: 0.5, fy: 0 }, box, { width: 200, height: 60 }, 'top')
+  expect(r.y).toBeCloseTo(50)            // anchorY = 50, top edge at anchorY
+  expect(r.y + r.height).toBeCloseTo(110)
+})
+
+test('clampFraction with bottom vEdge keeps an out-of-range box in viewport', () => {
+  const vp = { width: 1000, height: 500 }
+  const f = clampFraction({ fx: -2, fy: 2 }, box, { width: 200, height: 60 }, 'bottom', vp, 8)
+  const r = computeBoxRect(f, box, { width: 200, height: 60 }, 'bottom')
+  expect(r.x).toBeGreaterThanOrEqual(8 - 1e-6)
+  expect(r.y).toBeGreaterThanOrEqual(8 - 1e-6)
+  expect(r.x + r.width).toBeLessThanOrEqual(1000 - 8 + 1e-6)
+  expect(r.y + r.height).toBeLessThanOrEqual(500 - 8 + 1e-6)
+})

@@ -9,3 +9,7 @@ test('maps settings to css declarations', () => {
   expect(css.fontFamily).toBe('Arial')
   expect(css.textShadow).not.toBe('none')
 })
+
+test('outline:false yields textShadow none', () => {
+  expect(styleToCss({ fontSizePx: 20, color: '#000', bgOpacity: 0.5, fontFamily: 'x', outline: false }).textShadow).toBe('none')
+})

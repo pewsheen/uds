@@ -2,7 +2,7 @@ import type { Cue, RenderCommand, TickState } from './types'
 import { selectCue } from './cue-select'
 
 export function initTick(): TickState {
-  return { activeText: undefined as unknown as string | null }
+  return { activeText: null, emitted: false }
 }
 
 export function tick(
@@ -12,6 +12,6 @@ export function tick(
 ): { state: TickState; renderCommand?: RenderCommand } {
   const cue = selectCue(cues, currentTime)
   const text = cue ? cue.text : null
-  if (text === state.activeText) return { state }
-  return { state: { activeText: text }, renderCommand: { text } }
+  if (state.emitted && text === state.activeText) return { state }
+  return { state: { activeText: text, emitted: true }, renderCommand: { text } }
 }
