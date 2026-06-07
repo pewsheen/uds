@@ -4,6 +4,11 @@ import type { Cue } from '../../src/core/types'
 
 const cues: Cue[] = [{ start: 0, end: 1, text: 'A' }, { start: 1, end: 2, text: 'B' }]
 
+test('initTick returns the explicit empty state', () => {
+  // kills ObjectLiteral mutant that replaces the body with {}
+  expect(initTick()).toEqual({ activeText: null, emitted: false })
+})
+
 test('emits a command only when the active cue changes', () => {
   const r1 = tick(initTick(), 0.5, cues)
   expect(r1.renderCommand).toEqual({ text: 'A' })

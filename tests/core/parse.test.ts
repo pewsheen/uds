@@ -18,3 +18,13 @@ test('skips dur<=0 and non-finite start, and trims text', () => {
   expect(parseTimedText('<text start="." dur="1">x</text>')).toEqual([])
   expect(parseTimedText('<text start="1" dur="1">  hi  </text>')).toEqual([{ start: 1, end: 2, text: 'hi' }])
 })
+
+test('out-of-order cues are sorted ascending by start', () => {
+  // input deliberately unsorted; a stable ascending sort must reorder it.
+  // kills the `a.start - b.start` -> `a.start + b.start` mutant (which would NOT sort here).
+  const xml =
+    '<text start="3" dur="1">third</text>' +
+    '<text start="1" dur="1">first</text>' +
+    '<text start="2" dur="1">second</text>'
+  expect(parseTimedText(xml).map((c) => c.text)).toEqual(['first', 'second', 'third'])
+})

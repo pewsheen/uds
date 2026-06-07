@@ -32,6 +32,17 @@ test('computeBoxRect: top edge pins to fy and grows down', () => {
   expect(r.y + r.height).toBeCloseTo(110)
 })
 
+test('box larger than the viewport pins to the margin (Math.max floor)', () => {
+  // viewport smaller than size+2*margin: viewport.w - size.w - margin < margin,
+  // so maxX/maxY must fall back to `margin` (kills Math.max -> Math.min on lines 27/28).
+  const vp = { width: 150, height: 100 }
+  const size = { width: 200, height: 120 } // wider & taller than viewport
+  const f = clampFraction({ fx: 5, fy: 5 }, box, size, 'top', vp, 8)
+  const r = computeBoxRect(f, box, size, 'top')
+  expect(r.x).toBeCloseTo(8)  // pinned to margin, not a negative min()
+  expect(r.y).toBeCloseTo(8)
+})
+
 test('clampFraction with bottom vEdge keeps an out-of-range box in viewport', () => {
   const vp = { width: 1000, height: 500 }
   const f = clampFraction({ fx: -2, fy: 2 }, box, { width: 200, height: 60 }, 'bottom', vp, 8)

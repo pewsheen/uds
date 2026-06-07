@@ -32,3 +32,27 @@ test('prefers moving up when up/down distances are equal', () => {
   expect(out.y).toBeLessThan(100)               // <= picks up (60); mutant < would pick down (140)
   expect(rectsOverlap(out, o, 0)).toBe(false)
 })
+
+test('moves DOWN when down is strictly closer', () => {
+  // moved rect sits mostly below the other so |moveDown| < |moveUp|.
+  const r = { x: 0, y: 90, width: 100, height: 40 }   // bottom at 130
+  const o = { x: 0, y: 0, width: 100, height: 100 }   // bottom at 100
+  // moveUp   = o.y - gap - (r.y + r.height) = 0 - 0 - 130 = -130
+  // moveDown = o.y + o.height + gap - r.y   = 0 + 100 + 0 - 90 = 10
+  const out = avoidOverlap(r, [o], 0)
+  expect(out.y).toBeCloseTo(100)                // r.y(90) + moveDown(10) -> 100 (kills `true ? moveUp` and the `+ r.y` arithmetic mutant)
+  expect(out.y).toBeGreaterThan(r.y)            // genuinely moved down, not up
+  expect(rectsOverlap(out, o, 0)).toBe(false)
+})
+
+test('rectsOverlap: boundary on the LEFT/top-of side (symmetric disjuncts)', () => {
+  const a = { x: 200, y: 200, width: 100, height: 40 }
+  // b is to the LEFT of a, exactly gap apart: b.x + b.width + gap === a.x
+  const bLeft = { x: 0, y: 200, width: 192, height: 40 } // 0+192+8 = 200
+  expect(rectsOverlap(a, bLeft, 8)).toBe(false)
+  expect(rectsOverlap(a, { ...bLeft, x: 1 }, 8)).toBe(true) // 1px closer -> overlap
+  // b is ABOVE a, exactly gap apart: b.y + b.height + gap === a.y
+  const bAbove = { x: 200, y: 0, width: 100, height: 192 } // 0+192+8 = 200
+  expect(rectsOverlap(a, bAbove, 8)).toBe(false)
+  expect(rectsOverlap(a, { ...bAbove, y: 1 }, 8)).toBe(true)
+})
