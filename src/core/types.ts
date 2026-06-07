@@ -34,7 +34,8 @@ export type Rect = { x: number; y: number; width: number; height: number }
 export type Fraction = { fx: number; fy: number }
 
 // A caption track the video actually offers (from ytInitialPlayerResponse).
-export type CaptionTrack = { baseUrl: string; languageCode: string; name?: string }
+// `kind` is 'asr' for YouTube's auto-generated track.
+export type CaptionTrack = { baseUrl: string; languageCode: string; name?: string; kind?: string }
 
 export type LifecycleState =
   | { kind: 'idle' }

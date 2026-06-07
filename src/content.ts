@@ -11,14 +11,14 @@ import { createStorageAdapter } from './adapters/storage'
 import { createPlayerAdapter } from './adapters/player'
 import { createRenderer, type BoxView } from './adapters/renderer'
 
-type CaptionTrackRaw = { baseUrl: string; languageCode: string; name?: { simpleText?: string } }
+type CaptionTrackRaw = { baseUrl: string; languageCode: string; name?: { simpleText?: string }; kind?: string }
 type PlayerResponse =
   | { captions?: { playerCaptionsTracklistRenderer?: { captionTracks?: CaptionTrackRaw[] } } }
   | undefined
 
 function tracksFromResponse(pr: PlayerResponse): CaptionTrack[] {
   const tracks = pr?.captions?.playerCaptionsTracklistRenderer?.captionTracks
-  return (tracks ?? []).map((t) => ({ baseUrl: t.baseUrl, languageCode: t.languageCode, name: t.name?.simpleText }))
+  return (tracks ?? []).map((t) => ({ baseUrl: t.baseUrl, languageCode: t.languageCode, name: t.name?.simpleText, kind: t.kind }))
 }
 
 // `ytInitialPlayerResponse` is a page (main-world) global. A content script runs in an
@@ -53,7 +53,7 @@ async function main() {
       for (let i = 0; i < 40; i++) {
         const tracks = tracksFromResponse(readBridgeResponse())
         if (tracks.length > 0) {
-          sendResponse(tracks.map((t) => ({ languageCode: t.languageCode, name: t.name })))
+          sendResponse(tracks.map((t) => ({ languageCode: t.languageCode, name: t.name, kind: t.kind })))
           return
         }
         await new Promise((r) => setTimeout(r, 50))
@@ -95,15 +95,21 @@ async function main() {
     if (e.source !== window) return
     const d = e.data as { __dualSubsCaption?: boolean; url?: string; body?: string } | null
     if (!d || d.__dualSubsCaption !== true || !d.url || !d.body) return
-    let lang = ''
+    let capLang = ''
+    let capAsr = false
     try {
       const u = new URL(d.url)
-      lang = u.searchParams.get('tlang') || u.searchParams.get('lang') || ''
+      capLang = (u.searchParams.get('lang') || u.searchParams.get('tlang') || '').toLowerCase()
+      capAsr = u.searchParams.get('kind') === 'asr' // YouTube's auto-generated track
     } catch { return }
     const cues = parseCaptions(d.body)
     if (cues.length === 0) return
+    // Assign to the box whose resolved track matches this captured one (language + asr).
     for (const box of settings.boxes) {
-      if (pickTrack([{ baseUrl: d.url, languageCode: lang }], box.lang)) cuesByBox[box.id] = cues
+      const want = pickTrack(tracks, box.lang)
+      if (want && want.languageCode.toLowerCase() === capLang && (want.kind === 'asr') === capAsr) {
+        cuesByBox[box.id] = cues
+      }
     }
   })
   window.postMessage({ __dualSubsReady: true }, '*') // replay anything fetched pre-listener
@@ -147,10 +153,12 @@ async function main() {
       let pending = false
       for (const box of settings.boxes) {
         if (gen !== loadGen || !settings.enabled) return
-        if (!pickTrack(tracks, box.lang)) continue
+        const want = pickTrack(tracks, box.lang)
+        if (!want) continue
         if ((cuesByBox[box.id]?.length ?? 0) > 0) continue
         pending = true
-        window.postMessage({ __dualSubsLoad: box.lang }, '*') // bridge → player.setOption(track)
+        // bridge → player.setOption(track); send the resolved track (incl. asr kind).
+        window.postMessage({ __dualSubsLoad: { languageCode: want.languageCode, asr: want.kind === 'asr' } }, '*')
         await sleep(1600) // let the player switch + fetch + bridge capture
       }
       if (!pending) break

@@ -1,9 +1,10 @@
 import { createStorageAdapter } from '../adapters/storage'
+import { selectorForTrack } from '../core/track-select'
 
 const store = createStorageAdapter(chrome.storage.sync)
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T
 
-type TrackInfo = { languageCode: string; name?: string }
+type TrackInfo = { languageCode: string; name?: string; kind?: string }
 
 // Ask the active tab's content script which caption tracks the current video offers.
 function queryTracks(): Promise<TrackInfo[]> {
@@ -24,10 +25,12 @@ function fillSelect(sel: HTMLSelectElement, tracks: TrackInfo[], current: string
   sel.add(new Option('(off)', ''))
   const seen = new Set<string>()
   for (const t of tracks) {
-    sel.add(new Option(t.name ? `${t.name} (${t.languageCode})` : t.languageCode, t.languageCode))
-    seen.add(t.languageCode)
+    // value carries the asr marker (e.g. "asr:en"); the name already says "(auto-generated)".
+    const value = selectorForTrack(t)
+    sel.add(new Option(t.name ? `${t.name} (${t.languageCode})` : value, value))
+    seen.add(value)
   }
-  // Preserve a previously-saved language even if this video doesn't offer it.
+  // Preserve a previously-saved selection even if this video doesn't offer it.
   if (current && !seen.has(current)) sel.add(new Option(`${current} (not on this video)`, current))
   sel.value = current
 }

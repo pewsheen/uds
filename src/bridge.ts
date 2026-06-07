@@ -64,20 +64,22 @@ type YtPlayer = {
 
 window.addEventListener('message', (e: MessageEvent) => {
   if (e.source !== window || !e.data) return
-  const data = e.data as { __dualSubsReady?: boolean; __dualSubsLoad?: string }
+  const data = e.data as { __dualSubsReady?: boolean; __dualSubsLoad?: { languageCode?: string; asr?: boolean } }
   if (data.__dualSubsReady) {
     for (const m of buffer) window.postMessage(m, '*') // replay captures the content script missed
     return
   }
-  const lang = data.__dualSubsLoad
-  if (!lang) return
+  const req = data.__dualSubsLoad
+  if (!req || !req.languageCode) return
   const p = document.getElementById('movie_player') as unknown as YtPlayer | null
   if (!p) return
   try {
     p.loadModule?.('captions')
-    const list = (p.getOption?.('captions', 'tracklist', { includeAsr: true }) ?? []) as { languageCode?: string }[]
-    const primary = lang.split('-')[0]
-    const track = list.find((t) => t.languageCode === lang)
+    const list = (p.getOption?.('captions', 'tracklist', { includeAsr: true }) ?? []) as { languageCode?: string; kind?: string }[]
+    const lc = req.languageCode
+    const primary = lc.split('-')[0]
+    const track = list.find((t) => t.languageCode === lc && (t.kind === 'asr') === !!req.asr) // exact lang + kind
+      ?? list.find((t) => t.languageCode === lc)
       ?? list.find((t) => (t.languageCode ?? '').split('-')[0] === primary)
       ?? list[0]
     if (track) p.setOption?.('captions', 'track', track)
