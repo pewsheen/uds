@@ -33,11 +33,8 @@ function readBridgeResponse(): PlayerResponse {
 }
 
 async function findTrackBaseUrl(): Promise<string | null> {
-  // Prefer the isolated-world global (covers pages where the script can see it directly).
-  const direct = (window as unknown as { ytInitialPlayerResponse?: PlayerResponse }).ytInitialPlayerResponse
-  const fromDirect = baseUrlFromResponse(direct)
-  if (fromDirect) return fromDirect
-  // Otherwise wait for the MAIN-world bridge to publish the player response (the real YouTube case).
+  // The isolated world cannot read page globals such as `ytInitialPlayerResponse`.
+  // Poll the DOM attribute that the MAIN-world bridge (bridge.ts) publishes for us.
   for (let i = 0; i < 100; i++) {
     const fromBridge = baseUrlFromResponse(readBridgeResponse())
     if (fromBridge) return fromBridge
