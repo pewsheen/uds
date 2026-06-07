@@ -8,6 +8,8 @@
 
 **Tech Stack:** TypeScript (strict), Vitest + fast-check (unit/property), Stryker (mutation, core only), Playwright (smoke), ESLint (typescript-eslint + a no-DOM-in-core rule), esbuild (bundle).
 
+> **▶ EXECUTION STATUS (2026-06-07):** Tasks **1–14 DONE** (scaffold, lint guardrail, entire pure core — 38 tests, `npm run verify` green at commit `057b721`). **Resume at Task 15.** Full handoff + deviations: [docs/superpowers/PROGRESS.md](../PROGRESS.md).
+
 ---
 
 ## File Structure
