@@ -21,4 +21,10 @@
     const v = document.querySelector('video')
     window.__setTime = (t) => { v.currentTime = t }
   </script>
+  <button id="go-fs">fullscreen</button>
+  <script>
+    document.getElementById('go-fs').addEventListener('click', () => {
+      document.getElementById('movie_player').requestFullscreen().catch(() => {})
+    })
+  </script>
 </body></html>

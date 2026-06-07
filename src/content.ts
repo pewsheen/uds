@@ -74,6 +74,9 @@ async function main() {
   }
 
   function render() {
+    const fsEl = player.fullscreenEl()
+    const target = decideMountTarget(player.displayMode(), fsEl !== null)
+    renderer.ensureMount(target, fsEl)
     const t = player.currentTime()
     for (const box of settings.boxes) {
       const res = tick(tickStates[box.id]!, t, cuesByBox[box.id] ?? [])

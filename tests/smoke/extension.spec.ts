@@ -22,23 +22,28 @@ test.beforeAll(async () => {
 })
 test.afterAll(async () => { await context.close() })
 
+// Serve the fixture page AS a youtube.com/watch document so the content-script
+// match pattern (https://www.youtube.com/*) actually fires, and serve the fixture
+// XML for both subtitle boxes' timedtext fetches.
+async function routeFixtures(page: import('@playwright/test').Page) {
+  await page.route('https://www.youtube.com/watch*', async (route) => {
+    const html = await readFile(htmlPath, 'utf8')
+    await route.fulfill({ status: 200, contentType: 'text/html', body: html })
+  })
+  await page.route('**/api/timedtext**', async (route) => {
+    const xml = await readFile(xmlPath, 'utf8')
+    await route.fulfill({ status: 200, contentType: 'text/xml', body: xml })
+  })
+}
+
 test('injects, renders both boxes, syncs, drags', async () => {
   const page = await context.newPage()
   const errors: string[] = []
   page.on('pageerror', (e) => errors.push(String(e)))
 
-  // Serve the fixture page AS a youtube.com/watch document so the content-script
-  // match pattern (https://www.youtube.com/*) actually fires. Chromium injects
-  // content scripts based on the committed document URL, not how the body arrived.
-  await page.route('https://www.youtube.com/watch*', async (route) => {
-    const html = await readFile(htmlPath, 'utf8')
-    await route.fulfill({ status: 200, contentType: 'text/html', body: html })
-  })
-  // Both subtitle boxes fetch the same baseUrl with different tlang; serve fixture XML.
-  await page.route('**/api/timedtext**', async (route) => {
-    const xml = await readFile(xmlPath, 'utf8')
-    await route.fulfill({ status: 200, contentType: 'text/xml', body: xml })
-  })
+  // Chromium injects content scripts based on the committed document URL, not how
+  // the body arrived.
+  await routeFixtures(page)
 
   await page.goto('https://www.youtube.com/watch?v=fixture')
 
@@ -81,4 +86,31 @@ test('injects, renders both boxes, syncs, drags', async () => {
   await page.mouse.up()
 
   await expect(draggable).toHaveAttribute('data-anchor', 'page')
+})
+
+test('re-parents the subtitle layer into the fullscreen element on fullscreen', async () => {
+  const page = await context.newPage()
+  const errors: string[] = []
+  page.on('pageerror', (e) => errors.push(String(e)))
+
+  await routeFixtures(page)
+  await page.goto('https://www.youtube.com/watch?v=fixture')
+
+  await expect(page.locator('#dual-subs-layer')).toBeAttached({ timeout: 10000 })
+  expect(errors, errors.join('\n')).toHaveLength(0)
+
+  // 1. Initially the layer is a direct child of <body>.
+  await expect(page.locator('body > #dual-subs-layer')).toBeAttached()
+
+  // 2. Enter real fullscreen via a user gesture, then wait for the browser to report it.
+  await page.click('#go-fs')
+  await page.waitForFunction(() => !!document.fullscreenElement, null, { timeout: 5000 })
+
+  // 3. The rAF render loop should re-parent the layer under #movie_player.
+  await expect(page.locator('#movie_player #dual-subs-layer')).toBeAttached({ timeout: 5000 })
+
+  // 4. Exit fullscreen and assert it returns under <body>.
+  await page.evaluate(() => document.exitFullscreen())
+  await page.waitForFunction(() => !document.fullscreenElement, null, { timeout: 5000 })
+  await expect(page.locator('body > #dual-subs-layer')).toBeAttached({ timeout: 5000 })
 })
