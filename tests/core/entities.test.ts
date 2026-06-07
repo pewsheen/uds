@@ -7,3 +7,11 @@ test('decodes named and numeric entities', () => {
   expect(decodeEntities('it&#39;s &quot;ok&quot;')).toBe(`it's "ok"`)
   expect(decodeEntities('&#x41;')).toBe('A')
 })
+
+test('apos, gt, unknown passthrough, uppercase hex, out-of-range codepoint', () => {
+  expect(decodeEntities('&apos;')).toBe("'")
+  expect(decodeEntities('a&gt;b')).toBe('a>b')
+  expect(decodeEntities('&unknown;')).toBe('&unknown;')
+  expect(decodeEntities('&#X41;')).toBe('A')           // uppercase hex
+  expect(decodeEntities('&#x110000;')).toBe('&#x110000;') // out of range -> unchanged, must NOT throw
+})

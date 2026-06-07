@@ -12,3 +12,9 @@ test('parses cues with decoded text and computed end', () => {
     { start: 4.5, end: 5.5, text: '<end>' },
   ])
 })
+
+test('skips dur<=0 and non-finite start, and trims text', () => {
+  expect(parseTimedText('<text start="1.0" dur="0">x</text>')).toEqual([])
+  expect(parseTimedText('<text start="." dur="1">x</text>')).toEqual([])
+  expect(parseTimedText('<text start="1" dur="1">  hi  </text>')).toEqual([{ start: 1, end: 2, text: 'hi' }])
+})

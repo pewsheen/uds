@@ -5,9 +5,7 @@ const ROW = /<text\s+start="([\d.]+)"\s+dur="([\d.]+)"[^>]*>([\s\S]*?)<\/text>/g
 
 export function parseTimedText(xml: string): Cue[] {
   const cues: Cue[] = []
-  let m: RegExpExecArray | null
-  ROW.lastIndex = 0
-  while ((m = ROW.exec(xml)) !== null) {
+  for (const m of xml.matchAll(ROW)) {
     const start = parseFloat(m[1]!)
     const dur = parseFloat(m[2]!)
     if (!Number.isFinite(start) || !Number.isFinite(dur) || dur <= 0) continue
