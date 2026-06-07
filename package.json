@@ -1,0 +1,31 @@
+{
+  "name": "youtube-dual-subs",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test:unit": "vitest run tests/core tests/adapters",
+    "test:golden": "vitest run tests/golden",
+    "test:mutation": "stryker run",
+    "build": "node build.mjs",
+    "test:smoke": "playwright test",
+    "verify": "npm run typecheck && npm run lint && npm run test:unit",
+    "verify:full": "npm run verify && npm run test:golden && npm run test:mutation && npm run build && npm run test:smoke",
+    "record": "node scripts/record.mjs"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.58.2",
+    "@stryker-mutator/core": "^8.7.1",
+    "@stryker-mutator/vitest-runner": "^8.7.1",
+    "@types/chrome": "^0.0.287",
+    "@types/node": "^22.10.0",
+    "esbuild": "^0.24.0",
+    "eslint": "^9.17.0",
+    "fast-check": "^3.23.1",
+    "typescript": "^5.7.2",
+    "typescript-eslint": "^8.18.0",
+    "vitest": "^2.1.8"
+  }
+}

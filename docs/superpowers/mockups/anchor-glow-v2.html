@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<title>Anchor Glow v2 — inner glow + edge emphasis</title>
+<style>
+  @property --angle { syntax:'<angle>'; initial-value:0deg; inherits:false; }
+  :root{
+    --ai1:#ff3b6b; --ai2:#ff8a3d; --ai3:#ffd23d; --ai4:#3ddc84;
+    --ai5:#22d3ee; --ai6:#3b82f6; --ai7:#8b5cf6; --ai8:#ec4899;
+    --accentA:#a78bfa; --accentB:#3b82f6; --accentC:#22d3ee;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{
+    font-family:'Segoe UI','Microsoft JhengHei',system-ui,sans-serif;
+    background:#0c0c0d;color:#f1f1f1;min-height:100vh;padding:30px 28px 64px;
+  }
+  h1{font-size:19px;font-weight:700;letter-spacing:-.3px;margin-bottom:4px;}
+  .sub{font-size:13px;color:#9a9a9a;margin-bottom:26px;}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:34px;max-width:1120px;}
+  .cap{font-size:14.5px;font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:9px;}
+  .cap .tag{font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;
+    background:linear-gradient(90deg,var(--accentB),var(--accentA));color:#fff;}
+  .cap .dir{color:#bdbdbd;font-weight:500;}
+
+  .player-wrap{position:relative;border-radius:14px;}
+  /* full ring — now subtle + small range */
+  .halo,.ring{position:absolute;border-radius:15px;pointer-events:none;}
+  .halo{
+    inset:-5px;
+    background:conic-gradient(from var(--angle),
+      var(--ai1),var(--ai2),var(--ai3),var(--ai4),var(--ai5),var(--ai6),var(--ai7),var(--ai8),var(--ai1));
+    filter:blur(11px) saturate(1.25);opacity:.38;
+    animation:spin 7s linear infinite;
+  }
+  .ring{
+    inset:-1.5px;padding:1.5px;opacity:.6;
+    background:conic-gradient(from var(--angle),
+      var(--ai1),var(--ai2),var(--ai3),var(--ai4),var(--ai5),var(--ai6),var(--ai7),var(--ai8),var(--ai1));
+    -webkit-mask:linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite:xor;mask-composite:exclude;
+    animation:spin 7s linear infinite;
+  }
+  @keyframes spin{ to{ --angle:360deg; } }
+  @keyframes pulse{ 0%,100%{opacity:.82;} 50%{opacity:1;} }
+
+  .player{
+    position:relative;z-index:2;aspect-ratio:16/9;border-radius:13px;overflow:hidden;
+    background:radial-gradient(120% 90% at 50% 30%, #2b3a4a 0%, #141a22 60%, #0c1116 100%);
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,.05);
+  }
+  .play{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;opacity:.14;}
+  .play div{width:0;height:0;border-left:34px solid #fff;border-top:21px solid transparent;border-bottom:21px solid transparent;margin-left:8px;}
+  .ctrl{position:absolute;left:0;right:0;bottom:0;height:34px;background:linear-gradient(transparent,rgba(0,0,0,.7));}
+  .ctrl::before{content:"";position:absolute;left:12px;right:12px;bottom:21px;height:2.5px;border-radius:2px;background:rgba(255,255,255,.28);}
+  .ctrl::after{content:"";position:absolute;left:12px;bottom:20px;width:38%;height:4px;border-radius:3px;background:#ff4e45;}
+
+  /* ===== attached-edge emphasis (inner + outer), the strong single side ===== */
+  .edge-inner{position:absolute;left:0;right:0;height:52%;pointer-events:none;z-index:3;animation:pulse 3s ease-in-out infinite;}
+  .edge-outer{position:absolute;left:-2%;right:-2%;height:34px;filter:blur(13px);pointer-events:none;z-index:1;animation:pulse 3s ease-in-out infinite;}
+  .edge-line {position:absolute;left:5%;right:5%;height:3px;border-radius:3px;pointer-events:none;z-index:4;
+    background:linear-gradient(90deg,transparent,var(--accentA),var(--accentB),var(--accentC),var(--accentA),transparent);
+    box-shadow:0 0 14px rgba(99,102,241,.95),0 0 30px rgba(34,211,238,.55);}
+
+  .attach-bottom .edge-inner{bottom:0;background:linear-gradient(to top,rgba(124,92,246,.5),rgba(59,130,246,.22) 45%,transparent 80%);}
+  .attach-bottom .edge-outer{bottom:-15px;background:radial-gradient(72% 130% at 50% 0%,rgba(124,92,246,.95),rgba(34,211,238,.45) 52%,transparent 78%);}
+  .attach-bottom .edge-line {bottom:0;}
+
+  .attach-top .edge-inner{top:0;background:linear-gradient(to bottom,rgba(124,92,246,.5),rgba(59,130,246,.22) 45%,transparent 80%);}
+  .attach-top .edge-outer{top:-15px;background:radial-gradient(72% 130% at 50% 100%,rgba(124,92,246,.95),rgba(34,211,238,.45) 52%,transparent 78%);}
+  .attach-top .edge-line {top:0;}
+
+  /* subtitle box */
+  .subs{
+    position:absolute;left:50%;transform:translateX(-50%);z-index:6;
+    display:flex;flex-direction:column;gap:4px;align-items:center;
+    padding:9px 15px;border-radius:11px;max-width:82%;
+    background:rgba(10,10,12,.6);backdrop-filter:blur(3px);cursor:grabbing;
+    box-shadow:0 14px 32px rgba(0,0,0,.55), 0 0 0 1.4px rgba(255,255,255,.16);
+  }
+  .attach-bottom .subs{bottom:46px;}
+  .attach-top .subs{top:42px;}
+  .subs .l1{font-size:18px;font-weight:600;color:#fff;text-shadow:0 2px 6px rgba(0,0,0,.85);}
+  .subs .l2{font-size:18px;font-weight:600;color:#ffe7a3;text-shadow:0 2px 6px rgba(0,0,0,.85);}
+  .grip{position:absolute;top:5px;left:50%;transform:translateX(-50%);width:30px;height:4px;border-radius:3px;background:rgba(255,255,255,.4);}
+
+  .badge{
+    position:absolute;left:50%;transform:translateX(-50%);z-index:7;
+    display:flex;align-items:center;gap:7px;padding:6px 12px;border-radius:18px;
+    font-size:12.5px;font-weight:600;color:#fff;white-space:nowrap;
+    background:linear-gradient(90deg, rgba(59,130,246,.96), rgba(139,92,246,.96));
+    box-shadow:0 8px 22px rgba(80,60,200,.5), 0 0 0 1px rgba(255,255,255,.26);
+  }
+  .attach-bottom .badge{bottom:128px;}
+  .attach-top .badge{top:120px;}
+  .badge .ic{font-size:12px;}
+
+  .cursor{position:absolute;z-index:8;filter:drop-shadow(0 2px 3px rgba(0,0,0,.7));}
+  .attach-bottom .cursor{left:calc(50% + 74px);bottom:56px;}
+  .attach-top .cursor{left:calc(50% + 74px);top:84px;}
+
+  .legend{margin-top:30px;font-size:12.5px;color:#bdbdbd;display:flex;gap:22px;flex-wrap:wrap;}
+  .legend b{color:#fff;}
+  .chip{display:inline-block;width:30px;height:9px;border-radius:5px;vertical-align:middle;margin-right:6px;
+    background:linear-gradient(90deg,var(--accentA),var(--accentB),var(--accentC));box-shadow:0 0 8px rgba(99,102,241,.7);}
+</style>
+</head>
+<body>
+  <h1>拖曳時:發光最強的那一邊 = 字幕會釘住的邊(也就是生長方向的反向)</h1>
+  <div class="sub">整圈光暈調柔調小(只剩淡淡流動的彩虹),attach 的單邊做 inner + outer 加強,清楚指出停靠位置。</div>
+
+  <div class="grid">
+    <!-- 靠上:釘上緣,往下長 -->
+    <div>
+      <div class="cap"><span class="tag">靠上</span><span>釘上緣</span><span class="dir">· 字幕往下長 ↓</span></div>
+      <div class="player-wrap">
+        <div class="halo"></div><div class="ring"></div>
+        <div class="player attach-top">
+          <div class="play"><div></div></div><div class="ctrl"></div>
+          <div class="edge-outer"></div><div class="edge-inner"></div><div class="edge-line"></div>
+          <div class="badge"><span class="ic">◎</span>錨定影片 · 釘上緣</div>
+          <div class="subs"><div class="grip"></div>
+            <div class="l1">It grows downward here.</div>
+            <div class="l2">在這裡會往下生長。</div>
+          </div>
+          <svg class="cursor" width="24" height="24" viewBox="0 0 24 24"><path d="M4 2 L4 22 L9.4 16.6 L12.6 22.6 L15.3 21.2 L12.1 15.3 L19 15.3 Z" fill="#fff" stroke="#000" stroke-width="1.3" stroke-linejoin="round"/></svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- 靠下:釘下緣,往上長 -->
+    <div>
+      <div class="cap"><span class="tag">靠下</span><span>釘下緣</span><span class="dir">· 字幕往上長 ↑</span></div>
+      <div class="player-wrap">
+        <div class="halo"></div><div class="ring"></div>
+        <div class="player attach-bottom">
+          <div class="play"><div></div></div><div class="ctrl"></div>
+          <div class="edge-outer"></div><div class="edge-inner"></div><div class="edge-line"></div>
+          <div class="badge"><span class="ic">◎</span>錨定影片 · 釘下緣</div>
+          <div class="subs"><div class="grip"></div>
+            <div class="l1">It grows upward here.</div>
+            <div class="l2">在這裡會往上生長。</div>
+          </div>
+          <svg class="cursor" width="24" height="24" viewBox="0 0 24 24"><path d="M4 2 L4 22 L9.4 16.6 L12.6 22.6 L15.3 21.2 L12.1 15.3 L19 15.3 Z" fill="#fff" stroke="#000" stroke-width="1.3" stroke-linejoin="round"/></svg>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="legend">
+    <span><span class="chip"></span><b>強光邊</b>:inner + outer 雙重發光 = 會釘住這條邊</span>
+    <span><b>淡彩虹環</b>:整圈柔光,表示「放開將錨定到影片」</span>
+    <span><b>規則</b>:靠上釘上(往下長)、靠下釘下(往上長)</span>
+  </div>
+</body>
+</html>
