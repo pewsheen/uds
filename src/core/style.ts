@@ -1,6 +1,6 @@
 import type { StyleSettings } from './types'
 
-export function hexToRgb(hex: string): { r: number; g: number; b: number } {
+export function hexToRgb(hex: unknown): { r: number; g: number; b: number } {
   const black = { r: 0, g: 0, b: 0 }
   if (typeof hex !== 'string') return black
   let h = hex.trim().replace(/^#/, '')

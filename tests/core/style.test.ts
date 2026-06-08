@@ -36,11 +36,16 @@ test('hexToRgb accepts no leading hash and uppercase', () => {
 })
 
 test('hexToRgb expands 3-digit shorthand', () => {
-  expect(hexToRgb('#0f0')).toEqual({ r: 0, g: 255, b: 0 })
+  expect(hexToRgb('#f08')).toEqual({ r: 255, g: 0, b: 136 })
 })
 
 test('hexToRgb falls back to black on malformed input', () => {
   expect(hexToRgb('nope')).toEqual({ r: 0, g: 0, b: 0 })
   expect(hexToRgb('#12')).toEqual({ r: 0, g: 0, b: 0 })
   expect(hexToRgb('')).toEqual({ r: 0, g: 0, b: 0 })
+})
+
+test('hexToRgb returns black for non-string input', () => {
+  expect(hexToRgb(null)).toEqual({ r: 0, g: 0, b: 0 })
+  expect(hexToRgb(undefined)).toEqual({ r: 0, g: 0, b: 0 })
 })
