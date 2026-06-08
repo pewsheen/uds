@@ -1,5 +1,18 @@
 import type { StyleSettings } from './types'
 
+export function hexToRgb(hex: string): { r: number; g: number; b: number } {
+  const black = { r: 0, g: 0, b: 0 }
+  if (typeof hex !== 'string') return black
+  let h = hex.trim().replace(/^#/, '')
+  if (h.length === 3) h = h[0]! + h[0]! + h[1]! + h[1]! + h[2]! + h[2]!
+  if (!/^[0-9a-fA-F]{6}$/.test(h)) return black
+  return {
+    r: parseInt(h.slice(0, 2), 16),
+    g: parseInt(h.slice(2, 4), 16),
+    b: parseInt(h.slice(4, 6), 16),
+  }
+}
+
 function clamp01(v: number): number {
   const c = v < 0 ? 0 : v > 1 ? 1 : v
   // Avoid scientific notation (e.g. 5e-324) in the output string by rounding

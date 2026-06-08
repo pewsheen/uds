@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest'
-import { styleToCss } from '../../src/core/style'
+import { hexToRgb, styleToCss } from '../../src/core/style'
 
 test('maps settings to css declarations', () => {
   const css = styleToCss({ fontSizePx: 24, color: '#fff', bgOpacity: 0.6, fontFamily: 'Arial', outline: true })
@@ -25,4 +25,22 @@ test('bgOpacity below 0 and above 1 is clamped into [0,1]', () => {
     .toBe('rgba(0,0,0,0)')
   expect(styleToCss({ fontSizePx: 20, color: '#000', bgOpacity: 2, fontFamily: 'x', outline: false }).backgroundColor)
     .toBe('rgba(0,0,0,1)')
+})
+
+test('hexToRgb parses 6-digit hex', () => {
+  expect(hexToRgb('#ff8800')).toEqual({ r: 255, g: 136, b: 0 })
+})
+
+test('hexToRgb accepts no leading hash and uppercase', () => {
+  expect(hexToRgb('FFFFFF')).toEqual({ r: 255, g: 255, b: 255 })
+})
+
+test('hexToRgb expands 3-digit shorthand', () => {
+  expect(hexToRgb('#0f0')).toEqual({ r: 0, g: 255, b: 0 })
+})
+
+test('hexToRgb falls back to black on malformed input', () => {
+  expect(hexToRgb('nope')).toEqual({ r: 0, g: 0, b: 0 })
+  expect(hexToRgb('#12')).toEqual({ r: 0, g: 0, b: 0 })
+  expect(hexToRgb('')).toEqual({ r: 0, g: 0, b: 0 })
 })
