@@ -53,3 +53,19 @@ test('hexToRgb returns black for non-string input', () => {
   expect(hexToRgb(null)).toEqual({ r: 0, g: 0, b: 0 })
   expect(hexToRgb(undefined)).toEqual({ r: 0, g: 0, b: 0 })
 })
+
+test('hexToRgb trims surrounding whitespace', () => {
+  // kills the mutant that drops .trim()
+  expect(hexToRgb('  ffffff  ')).toEqual({ r: 255, g: 255, b: 255 })
+})
+
+test('hexToRgb only strips a leading hash, not one elsewhere', () => {
+  // kills the /^#/ -> /#/ mutant: a trailing '#' must not be stripped into a valid 6-hex
+  expect(hexToRgb('ffffff#')).toEqual({ r: 0, g: 0, b: 0 })
+})
+
+test('hexToRgb rejects strings anchored loosely (extra chars before/after 6 hex)', () => {
+  // kills the ^-anchor-removal mutant (leading junk) and the $-anchor-removal mutant (trailing junk)
+  expect(hexToRgb('zffffff')).toEqual({ r: 0, g: 0, b: 0 })
+  expect(hexToRgb('fffffff')).toEqual({ r: 0, g: 0, b: 0 })
+})
