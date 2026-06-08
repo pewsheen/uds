@@ -2,7 +2,7 @@ import { expect, test } from 'vitest'
 import { hexToRgb, styleToCss } from '../../src/core/style'
 
 test('maps settings to css declarations', () => {
-  const css = styleToCss({ fontSizePx: 24, color: '#fff', bgOpacity: 0.6, fontFamily: 'Arial', outline: true })
+  const css = styleToCss({ fontSizePx: 24, color: '#fff', bgColor: '#000000', bgOpacity: 0.6, fontFamily: 'Arial', outline: true })
   expect(css.fontSize).toBe('24px')
   expect(css.color).toBe('#fff')
   expect(css.backgroundColor).toBe('rgba(0,0,0,0.6)')
@@ -10,20 +10,24 @@ test('maps settings to css declarations', () => {
   expect(css.textShadow).not.toBe('none')
 })
 
+test('background color is composed from bgColor + bgOpacity', () => {
+  const css = styleToCss({ fontSizePx: 24, color: '#fff', bgColor: '#ff8800', bgOpacity: 0.5, fontFamily: 'x', outline: false })
+  expect(css.backgroundColor).toBe('rgba(255,136,0,0.5)')
+})
+
 test('outline:false yields textShadow none', () => {
-  expect(styleToCss({ fontSizePx: 20, color: '#000', bgOpacity: 0.5, fontFamily: 'x', outline: false }).textShadow).toBe('none')
+  expect(styleToCss({ fontSizePx: 20, color: '#000', bgColor: '#000000', bgOpacity: 0.5, fontFamily: 'x', outline: false }).textShadow).toBe('none')
 })
 
 test('outline:true yields the exact shadow string (not empty)', () => {
-  // kills StringLiteral mutant that replaces the shadow with ''
-  expect(styleToCss({ fontSizePx: 20, color: '#000', bgOpacity: 0.5, fontFamily: 'x', outline: true }).textShadow)
+  expect(styleToCss({ fontSizePx: 20, color: '#000', bgColor: '#000000', bgOpacity: 0.5, fontFamily: 'x', outline: true }).textShadow)
     .toBe('0 2px 6px rgba(0,0,0,0.85)')
 })
 
 test('bgOpacity below 0 and above 1 is clamped into [0,1]', () => {
-  expect(styleToCss({ fontSizePx: 20, color: '#000', bgOpacity: -0.5, fontFamily: 'x', outline: false }).backgroundColor)
+  expect(styleToCss({ fontSizePx: 20, color: '#000', bgColor: '#000000', bgOpacity: -0.5, fontFamily: 'x', outline: false }).backgroundColor)
     .toBe('rgba(0,0,0,0)')
-  expect(styleToCss({ fontSizePx: 20, color: '#000', bgOpacity: 2, fontFamily: 'x', outline: false }).backgroundColor)
+  expect(styleToCss({ fontSizePx: 20, color: '#000', bgColor: '#000000', bgOpacity: 2, fontFamily: 'x', outline: false }).backgroundColor)
     .toBe('rgba(0,0,0,1)')
 })
 

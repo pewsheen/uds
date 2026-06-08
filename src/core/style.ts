@@ -29,10 +29,11 @@ export type CssDeclarations = {
 }
 
 export function styleToCss(s: StyleSettings): CssDeclarations {
+  const { r, g, b } = hexToRgb(s.bgColor)
   return {
     fontSize: `${s.fontSizePx}px`,
     color: s.color,
-    backgroundColor: `rgba(0,0,0,${clamp01(s.bgOpacity)})`,
+    backgroundColor: `rgba(${r},${g},${b},${clamp01(s.bgOpacity)})`,
     fontFamily: s.fontFamily,
     textShadow: s.outline ? '0 2px 6px rgba(0,0,0,0.85)' : 'none',
   }

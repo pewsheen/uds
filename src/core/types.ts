@@ -9,6 +9,7 @@ export type Placement = { anchor: Anchor; vEdge: VEdge; fx: number; fy: number }
 export type StyleSettings = {
   fontSizePx: number
   color: string
+  bgColor: string // hex, e.g. '#000000'
   bgOpacity: number // 0..1
   fontFamily: string
   outline: boolean
