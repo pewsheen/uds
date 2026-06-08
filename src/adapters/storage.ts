@@ -27,7 +27,9 @@ export function createStorageAdapter(area: chrome.storage.StorageArea): Store {
     async load() {
       const got = await area.get(KEY)
       const value = (got as Record<string, unknown>)[KEY] as Settings | undefined
-      if (!value) return DEFAULT_SETTINGS
+      // Fall back to defaults on absent or malformed/truncated stored data, so a
+      // corrupted record can't crash load() (and thus the content script).
+      if (!value || !Array.isArray(value.boxes) || value.boxes.length < 2) return DEFAULT_SETTINGS
       const boxes = value.boxes.map((b) => ({ ...b, style: { ...DEFAULT_STYLE, ...b.style } }))
       return { ...value, boxes: boxes as [BoxConfig, BoxConfig] }
     },

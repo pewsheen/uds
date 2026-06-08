@@ -8,7 +8,7 @@ test('background opacity is always within [0,1] in the output', () => {
     fc.integer({ min: 1, max: 200 }),
     (op, size) => {
       const css = styleToCss({ fontSizePx: size, color: '#000', bgColor: '#000000', bgOpacity: op, fontFamily: 'x', outline: false })
-      const m = /rgba\(0,0,0,([\d.]+)\)/.exec(css.backgroundColor)
+      const m = /rgba\(\d+,\d+,\d+,([\d.]+)\)/.exec(css.backgroundColor)
       if (!m) return false
       const a = parseFloat(m[1]!)
       return a >= 0 && a <= 1 && css.fontSize === `${size}px`

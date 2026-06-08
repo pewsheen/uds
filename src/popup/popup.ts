@@ -81,7 +81,8 @@ async function init() {
       bgOpacityVal.textContent = `${bgOpacity.value}%`
       scheduleSave()
     })
-    size.addEventListener('input', () => { box.style.fontSizePx = parseInt(size.value, 10) || 24; scheduleSave() })
+    // 'change' (not 'input') so a half-typed number like "3" doesn't briefly render at 3px live.
+    size.addEventListener('change', () => { box.style.fontSizePx = parseInt(size.value, 10) || 24; scheduleSave() })
     outline.addEventListener('change', () => { box.style.outline = outline.checked; scheduleSave() })
   })
 }

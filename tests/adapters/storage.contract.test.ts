@@ -32,3 +32,10 @@ test('fills missing bgColor on legacy persisted settings', async () => {
   expect(loaded.boxes[0].style.bgColor).toBe('#000000')
   expect(loaded.boxes[1].style.bgColor).toBe('#000000')
 })
+
+test('falls back to defaults on malformed (missing/short boxes) persisted data', async () => {
+  const area = fakeArea()
+  await area.set({ dualSubsSettings: { enabled: true } }) // truthy but no boxes array
+  const store = createStorageAdapter(area)
+  expect(await store.load()).toEqual(DEFAULT_SETTINGS)
+})
