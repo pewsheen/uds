@@ -1,19 +1,45 @@
 <!doctype html>
 <html><head><meta charset="utf-8">
 <style>
-  body{font:14px system-ui;width:280px;padding:12px}
+  body{font:14px system-ui;width:300px;padding:12px}
   label{display:block;margin:8px 0 2px}
-  select,input[type=number]{width:100%;box-sizing:border-box;margin-top:2px}
+  select,input[type=number]{box-sizing:border-box;margin-top:2px}
+  fieldset{border:1px solid #ddd;border-radius:8px;margin:10px 0;padding:6px 10px 10px}
+  legend{font-weight:600;padding:0 4px}
+  .row{display:flex;align-items:center;gap:8px;margin:6px 0}
+  .row label{margin:0;flex:1}
+  .row input[type=color]{width:40px;height:26px;padding:0;border:1px solid #ccc;background:none}
+  .row input[type=number]{width:70px}
+  fieldset select{width:100%}
+  input[type=range]{width:100%}
   #hint{color:#888;margin:10px 0 0;font-size:12px}
-  button{margin-top:10px}
 </style>
 </head><body>
   <label><input type="checkbox" id="enabled" style="width:auto"> Enable dual subtitles</label>
   <label><input type="checkbox" id="native" style="width:auto"> Also show YouTube's original subtitles</label>
-  <label>Subtitle 1 <select id="lang1"></select></label>
-  <label>Subtitle 2 <select id="lang2"></select></label>
-  <label>Font size <input id="font" type="number" min="10" max="80"></label>
-  <button id="save">Save</button>
+
+  <fieldset>
+    <legend>Subtitle 1</legend>
+    <label>Language <select id="lang0"></select></label>
+    <div class="row"><label for="color0">Font color</label><input type="color" id="color0"></div>
+    <div class="row"><label for="bgColor0">Background color</label><input type="color" id="bgColor0"></div>
+    <label for="bgOpacity0">Background opacity <span id="bgOpacityVal0"></span></label>
+    <input type="range" id="bgOpacity0" min="0" max="100">
+    <div class="row"><label for="size0">Font size</label><input type="number" id="size0" min="10" max="80"></div>
+    <div class="row"><label for="outline0">Outline</label><input type="checkbox" id="outline0" style="width:auto"></div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Subtitle 2</legend>
+    <label>Language <select id="lang1"></select></label>
+    <div class="row"><label for="color1">Font color</label><input type="color" id="color1"></div>
+    <div class="row"><label for="bgColor1">Background color</label><input type="color" id="bgColor1"></div>
+    <label for="bgOpacity1">Background opacity <span id="bgOpacityVal1"></span></label>
+    <input type="range" id="bgOpacity1" min="0" max="100">
+    <div class="row"><label for="size1">Font size</label><input type="number" id="size1" min="10" max="80"></div>
+    <div class="row"><label for="outline1">Outline</label><input type="checkbox" id="outline1" style="width:auto"></div>
+  </fieldset>
+
   <p id="hint"></p>
   <script type="module" src="popup.js"></script>
 </body></html>

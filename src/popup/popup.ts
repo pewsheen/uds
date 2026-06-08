@@ -25,41 +25,64 @@ function fillSelect(sel: HTMLSelectElement, tracks: TrackInfo[], current: string
   sel.add(new Option('(off)', ''))
   const seen = new Set<string>()
   for (const t of tracks) {
-    // value carries the asr marker (e.g. "asr:en"); the name already says "(auto-generated)".
     const value = selectorForTrack(t)
     sel.add(new Option(t.name ? `${t.name} (${t.languageCode})` : value, value))
     seen.add(value)
   }
-  // Preserve a previously-saved selection even if this video doesn't offer it.
   if (current && !seen.has(current)) sel.add(new Option(`${current} (not on this video)`, current))
   sel.value = current
 }
 
 async function init() {
   const s = await store.load()
-  ;($('enabled') as HTMLInputElement).checked = s.enabled
-  ;($('native') as HTMLInputElement).checked = s.nativeSubtitles ?? false
-  ;($('font') as HTMLInputElement).value = String(s.boxes[0].style.fontSizePx)
+
+  // Debounce writes: color/range fire 'input' rapidly and chrome.storage.sync
+  // has write-rate quotas. content.ts applies changes live via storage.onChanged.
+  let timer: number | undefined
+  const scheduleSave = () => {
+    if (timer != null) clearTimeout(timer)
+    timer = setTimeout(() => { void store.save(s) }, 150) as unknown as number
+  }
+
+  const enabled = $<HTMLInputElement>('enabled')
+  const native = $<HTMLInputElement>('native')
+  enabled.checked = s.enabled
+  native.checked = s.nativeSubtitles ?? false
+  enabled.addEventListener('change', () => { s.enabled = enabled.checked; scheduleSave() })
+  native.addEventListener('change', () => { s.nativeSubtitles = native.checked; scheduleSave() })
 
   const tracks = await queryTracks()
-  fillSelect($('lang1') as HTMLSelectElement, tracks, s.boxes[0].lang)
-  fillSelect($('lang2') as HTMLSelectElement, tracks, s.boxes[1].lang)
   $('hint').textContent = tracks.length
     ? `${tracks.length} subtitle track(s) on this video`
     : 'Open a YouTube video to list its subtitle tracks'
 
-  $('save').addEventListener('click', () => {
-    void (async () => {
-      s.enabled = ($('enabled') as HTMLInputElement).checked
-      s.nativeSubtitles = ($('native') as HTMLInputElement).checked
-      s.boxes[0].lang = ($('lang1') as HTMLSelectElement).value
-      s.boxes[1].lang = ($('lang2') as HTMLSelectElement).value
-      const size = parseInt(($('font') as HTMLInputElement).value, 10) || 24
-      s.boxes[0].style.fontSizePx = size
-      s.boxes[1].style.fontSizePx = size
-      await store.save(s)
-      window.close()
-    })()
+  s.boxes.forEach((box, i) => {
+    const lang = $<HTMLSelectElement>(`lang${i}`)
+    const color = $<HTMLInputElement>(`color${i}`)
+    const bgColor = $<HTMLInputElement>(`bgColor${i}`)
+    const bgOpacity = $<HTMLInputElement>(`bgOpacity${i}`)
+    const bgOpacityVal = $(`bgOpacityVal${i}`)
+    const size = $<HTMLInputElement>(`size${i}`)
+    const outline = $<HTMLInputElement>(`outline${i}`)
+
+    fillSelect(lang, tracks, box.lang)
+    color.value = box.style.color
+    bgColor.value = box.style.bgColor
+    bgOpacity.value = String(Math.round(box.style.bgOpacity * 100))
+    bgOpacityVal.textContent = `${bgOpacity.value}%`
+    size.value = String(box.style.fontSizePx)
+    outline.checked = box.style.outline
+
+    lang.addEventListener('change', () => { box.lang = lang.value; scheduleSave() })
+    color.addEventListener('input', () => { box.style.color = color.value; scheduleSave() })
+    bgColor.addEventListener('input', () => { box.style.bgColor = bgColor.value; scheduleSave() })
+    bgOpacity.addEventListener('input', () => {
+      box.style.bgOpacity = Number(bgOpacity.value) / 100
+      bgOpacityVal.textContent = `${bgOpacity.value}%`
+      scheduleSave()
+    })
+    size.addEventListener('input', () => { box.style.fontSizePx = parseInt(size.value, 10) || 24; scheduleSave() })
+    outline.addEventListener('change', () => { box.style.outline = outline.checked; scheduleSave() })
   })
 }
 void init()
