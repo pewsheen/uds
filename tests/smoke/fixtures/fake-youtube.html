@@ -9,12 +9,21 @@
     </div>
   </ytd-watch-flexy>
   <script>
-    window.ytInitialPlayerResponse = {
-      captions: { playerCaptionsTracklistRenderer: { captionTracks: [
-        { baseUrl: 'https://www.youtube.com/api/timedtext?v=fixture&lang=en', languageCode: 'en', name: { simpleText: 'English' } },
-        { baseUrl: 'https://www.youtube.com/api/timedtext?v=fixture&lang=zh-Hant', languageCode: 'zh-Hant', name: { simpleText: 'Chinese (Traditional)' } }
-      ] } }
+    function responseFor(videoId) {
+      return {
+        videoDetails: { videoId },
+        captions: { playerCaptionsTracklistRenderer: { captionTracks: [
+          { baseUrl: 'https://www.youtube.com/api/timedtext?v=' + videoId + '&lang=en', languageCode: 'en', name: { simpleText: 'English' } },
+          { baseUrl: 'https://www.youtube.com/api/timedtext?v=' + videoId + '&lang=zh-Hant', languageCode: 'zh-Hant', name: { simpleText: 'Chinese (Traditional)' } }
+        ] } }
+      }
     }
+    let playerResponse = responseFor('fixture')
+    window.ytInitialPlayerResponse = playerResponse
+    // The live player API — the bridge prefers this over ytInitialPlayerResponse because
+    // YouTube doesn't update the latter on SPA navigation. Returns the CURRENT video.
+    document.getElementById('movie_player').getPlayerResponse = () => playerResponse
+
     // Set the NATIVE currentTime so the isolated-world content script (which reads the
     // native media getter) observes the change. Do NOT use Object.defineProperty here:
     // a JS-level override only exists in this (main) world and never reaches the element
@@ -24,8 +33,21 @@
     // Simulate the player loading its caption tracks. The MAIN-world bridge intercepts
     // these timedtext responses and forwards them to the content script — exactly as it
     // captures the real player's authenticated (pot-bearing) responses on youtube.com.
-    fetch('https://www.youtube.com/api/timedtext?v=fixture&lang=en&fmt=json3').catch(() => {})
-    fetch('https://www.youtube.com/api/timedtext?v=fixture&lang=zh-Hant&fmt=json3').catch(() => {})
+    function fetchTracks(videoId) {
+      fetch('https://www.youtube.com/api/timedtext?v=' + videoId + '&lang=en&fmt=json3').catch(() => {})
+      fetch('https://www.youtube.com/api/timedtext?v=' + videoId + '&lang=zh-Hant&fmt=json3').catch(() => {})
+    }
+    fetchTracks('fixture')
+    // Simulate YouTube's SPA navigation to a new video: swap the player response, update
+    // the URL, reset playback, fire the router event, and load the new tracks — no reload.
+    window.__navigate = (videoId) => {
+      playerResponse = responseFor(videoId)
+      window.ytInitialPlayerResponse = playerResponse
+      history.pushState({}, '', '/watch?v=' + videoId)
+      v.currentTime = 0
+      document.dispatchEvent(new CustomEvent('yt-navigate-finish'))
+      fetchTracks(videoId)
+    }
   </script>
   <button id="go-fs">fullscreen</button>
   <script>

@@ -7,10 +7,22 @@
 //     itself — we reuse what the player already fetched.
 //  3. On request, ask the player to load a specific caption language (which triggers
 //     an authenticated fetch we then forward).
+import { parseWatchId } from './core/navigation'
+
 const ATTR = 'data-dual-subs-pr'
 
-function publish(): boolean {
-  const pr = (window as unknown as { ytInitialPlayerResponse?: unknown }).ytInitialPlayerResponse
+type PlayerResp = { videoDetails?: { videoId?: string } } | undefined
+
+// The current video's player response. After an SPA navigation `ytInitialPlayerResponse`
+// is NOT reliably updated, so prefer the live player API, which always reflects the
+// video on screen; fall back to the initial global for the very first page load.
+function currentPlayerResponse(): PlayerResp {
+  const mp = document.getElementById('movie_player') as unknown as { getPlayerResponse?: () => unknown } | null
+  const fromApi = mp?.getPlayerResponse?.()
+  return (fromApi ?? (window as unknown as { ytInitialPlayerResponse?: unknown }).ytInitialPlayerResponse) as PlayerResp
+}
+
+function publishFrom(pr: PlayerResp): boolean {
   if (!pr) return false
   try {
     document.documentElement.setAttribute(ATTR, JSON.stringify(pr))
@@ -20,13 +32,28 @@ function publish(): boolean {
   }
 }
 
-if (!publish()) {
+// Publish the response for `wantId` (the video in the URL), retrying until the player
+// API catches up. We only write once the response's videoId matches so the content
+// script never reads the previous video's tracks during the swap.
+function publishCurrent(wantId: string | null): void {
   let tries = 0
-  const id = setInterval(() => {
+  const attempt = () => {
     tries += 1
-    if (publish() || tries > 100) clearInterval(id)
-  }, 50)
+    const pr = currentPlayerResponse()
+    // Reject only a response that carries a DIFFERENT videoId (the player API still on
+    // the old video mid-swap). A response without a videoId is accepted best-effort.
+    const id = pr?.videoDetails?.videoId
+    const stale = !!wantId && !!id && id !== wantId
+    if (pr && !stale) {
+      publishFrom(pr)
+      return
+    }
+    if (tries <= 100) setTimeout(attempt, 50)
+  }
+  attempt()
 }
+
+publishCurrent(parseWatchId(location.href))
 
 const TIMEDTEXT = '/api/timedtext'
 type CaptionMsg = { __dualSubsCaption: true; url: string; body: string }
@@ -38,6 +65,13 @@ function forward(url: string, body: string): void {
   buffer.push(msg)
   window.postMessage(msg, '*')
 }
+
+// On SPA navigation: drop the previous video's captured captions (so a replay can't
+// hand them to the new video) and re-publish the new video's player response.
+document.addEventListener('yt-navigate-finish', () => {
+  buffer.length = 0
+  publishCurrent(parseWatchId(location.href))
+})
 
 const origFetch = window.fetch
 window.fetch = function (input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
