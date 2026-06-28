@@ -14,7 +14,9 @@ const VIDEO = `https://www.youtube.com/watch?v=${ID}&cc_load_policy=1&cc_lang_pr
 // realistic captions: many short cues (so the render cursor always has an active one)
 const json3 = (v, lang) => JSON.stringify({ events: Array.from({ length: 300 }, (_, i) => ({ tStartMs: i * 2000, dDurationMs: 2000, segs: [{ utf8: `CUE[v=${v} ${lang}]` }] })) })
 const STYLE = { fontSizePx: 24, color: '#ffffff', bgColor: '#000000', bgOpacity: 0.55, fontFamily: 'system-ui', outline: true }
-const SETTINGS = { enabled: true, nativeSubtitles: false, boxes: [{ id: 'sub1', lang: 'en', style: STYLE }, { id: 'sub2', lang: '', style: STYLE }] }
+const MODES = ['default', 'theater', 'fullscreen', 'miniplayer']
+const posByMode = Object.fromEntries(MODES.map((m) => [m, { anchor: 'video', vEdge: 'bottom', fx: 0.5, fy: 0.9 }]))
+const SETTINGS = { enabled: true, nativeSubtitles: false, boxes: [{ id: 'sub1', lang: 'en', style: STYLE, posByMode }, { id: 'sub2', lang: '', style: STYLE, posByMode }] }
 const extId = (p) => { const h = createHash('sha256').update(p).digest('hex'); let id = ''; for (let i = 0; i < 32; i++) id += String.fromCharCode(97 + parseInt(h[i], 16)); return id }
 const log = (...a) => console.log(...a)
 

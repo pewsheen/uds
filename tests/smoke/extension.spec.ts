@@ -231,3 +231,32 @@ test('re-selecting a box source (off → on) re-fills it without a reload', asyn
   await popup.close()
   await page.close()
 })
+
+test('refresh with default-on captions refetches a single already-selected track', async () => {
+  const page = await context.newPage()
+  await page.route('https://www.youtube.com/watch*', async (route) => {
+    const html = await readFile(htmlPath, 'utf8')
+    await route.fulfill({ status: 200, contentType: 'text/html', body: html })
+  })
+
+  let emptied = false
+  await page.route('**/api/timedtext**', async (route) => {
+    const lang = new URL(route.request().url()).searchParams.get('lang')
+    if (lang === 'en' && !emptied) {
+      emptied = true
+      await route.fulfill({ status: 200, contentType: 'application/json', body: '' })
+      return
+    }
+    const json = await readFile(json3Path, 'utf8')
+    await route.fulfill({ status: 200, contentType: 'application/json', body: json })
+  })
+
+  await page.goto('https://www.youtube.com/watch?v=fixture&singleTrack=1')
+
+  const box0 = page.locator('.dual-subs-box').first()
+  await expect(page.locator('#dual-subs-layer')).toBeAttached({ timeout: 10000 })
+  await expect(page.locator('.ytp-subtitles-button')).toHaveAttribute('aria-pressed', 'true')
+
+  await page.evaluate(() => (window as unknown as { __setTime: (t: number) => void }).__setTime(1))
+  await expect(box0).toContainText('Hello from the fixture', { timeout: 15000 })
+})

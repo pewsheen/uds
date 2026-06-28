@@ -174,6 +174,17 @@ async function main() {
     const btn = document.querySelector<HTMLElement>('.ytp-subtitles-button')
     if (btn && btn.getAttribute('aria-pressed') === 'false') btn.click()
   }
+  async function toggleCCForRefetch(gen: number): Promise<boolean> {
+    const btn = document.querySelector<HTMLElement>('.ytp-subtitles-button')
+    if (!btn || btn.getAttribute('aria-pressed') !== 'true') return false
+    dlog('startLoading gen', gen, 'nudge → cc toggle')
+    btn.click()
+    await sleep(600)
+    if (gen !== loadGen || !settings.enabled) return false
+    btn.click()
+    await sleep(1600)
+    return true
+  }
   const isStuck = () => settings.boxes.some((b) => pickTrack(tracks, b.lang) && (cuesByBox[b.id]?.length ?? 0) === 0)
   async function startLoading() {
     const gen = ++loadGen
@@ -196,11 +207,9 @@ async function main() {
       if (!pending) break
       // A wanted box is still empty after a full round — the player likely has an empty/
       // stale track loaded and ignores setOption for it (e.g. its first pot-gated fetch
-      // came back empty while captions were default-on, and there's no second language to
-      // make it switch). Dislodge it by switching to a DIFFERENT track; the next round
-      // re-selects the wanted one, which the player now treats as a real change and
-      // re-fetches. (A plain CC off→on toggle proved unreliable here; a track switch is
-      // the same mechanism the player honours when two boxes alternate languages.)
+      // came back empty while captions were default-on). Dislodge it by switching to a
+      // DIFFERENT track when possible; if the video/settings expose no alternate, fall
+      // back to the same CC off→on refetch a manual user toggle would trigger.
       if (!nudged && gen === loadGen && isStuck()) {
         nudged = true
         const wanted = new Set(settings.boxes.map((b) => pickTrack(tracks, b.lang)?.languageCode).filter(Boolean))
@@ -209,6 +218,8 @@ async function main() {
           dlog('startLoading gen', gen, 'nudge →', other.languageCode, other.kind ?? '')
           window.postMessage({ __dualSubsLoad: { languageCode: other.languageCode, asr: other.kind === 'asr' } }, '*')
           await sleep(1600) // let the player switch away, so the next round's re-select re-fetches
+        } else {
+          await toggleCCForRefetch(gen)
         }
       }
       await sleep(500)
