@@ -15,4 +15,5 @@ await build({
 
 cpSync('src/manifest.json', 'dist/manifest.json')
 cpSync('src/popup/popup.html', 'dist/popup/popup.html')
+cpSync('src/popup/moomay.css', 'dist/popup/moomay.css')
 console.log('built dist/')

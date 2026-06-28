@@ -1,45 +1,515 @@
 <!doctype html>
-<html><head><meta charset="utf-8">
+<html lang="en"><head>
+<meta charset="utf-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="moomay.css">
 <style>
-  body{font:14px system-ui;width:300px;padding:12px}
-  label{display:block;margin:8px 0 2px}
-  select,input[type=number]{box-sizing:border-box;margin-top:2px}
-  fieldset{border:1px solid #ddd;border-radius:8px;margin:10px 0;padding:6px 10px 10px}
-  legend{font-weight:600;padding:0 4px}
-  .row{display:flex;align-items:center;gap:8px;margin:6px 0}
-  .row label{margin:0;flex:1}
-  .row input[type=color]{width:40px;height:26px;padding:0;border:1px solid #ccc;background:none}
-  .row input[type=number]{width:70px}
-  fieldset select{width:100%}
-  input[type=range]{width:100%}
-  #hint{color:#888;margin:10px 0 0;font-size:12px}
+  /* ── moomay popup · caption signal console ─────────────────────────────
+     Tokens + primitives come from moomay.css. This block is popup-only:
+     layout, and the native form controls restyled in-brand (sharp corners,
+     hairline borders, acid focus glow, hazard master switch). ─────────── */
+  :root { color-scheme: dark; }
+
+  body {
+    width: 332px;
+    margin: 0;
+    background: var(--mm-black);
+    color: var(--mm-fg-1);
+    overflow-x: hidden;
+  }
+  /* top signal rail — the one ambient accent */
+  body::before {
+    content: "";
+    display: block;
+    height: 2px;
+    background: linear-gradient(90deg, var(--mm-acid), transparent 70%);
+    opacity: .8;
+  }
+
+  /* ── header ─────────────────────────────────────────────────────────── */
+  .hd {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 13px 16px;
+    border-bottom: 1px solid var(--mm-line);
+    background: var(--mm-ink);
+  }
+  .mark {
+    position: relative;
+    flex: none;
+    width: 22px; height: 17px;
+    background: var(--mm-black);
+    border: 1px solid var(--mm-line-bright);
+    border-radius: var(--mm-r-1);
+  }
+  /* two caption lines inside the screen — literal "dual subs" */
+  .mark::before, .mark::after {
+    content: "";
+    position: absolute;
+    left: 3px;
+    height: 2px;
+    border-radius: 1px;
+  }
+  .mark::before { top: 4px;  right: 6px; background: var(--mm-acid); box-shadow: 0 0 6px var(--mm-acid); }
+  .mark::after  { top: 9px;  right: 3px; background: var(--mm-fg-3); }
+
+  .id { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .word {
+    font-family: var(--mm-font-sans);
+    font-weight: 700;
+    font-size: 16px;
+    letter-spacing: var(--mm-track-tight);
+    line-height: 1;
+    color: var(--mm-fg-1);
+  }
+  .kick {
+    font-family: var(--mm-font-mono);
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: var(--mm-track-scream);
+    text-transform: uppercase;
+    color: var(--mm-acid);
+    line-height: 1;
+  }
+
+  .status {
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--mm-font-mono);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: var(--mm-track-eye);
+    text-transform: uppercase;
+    color: var(--mm-fg-3);
+  }
+  .sdot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--mm-fg-4);
+    flex: none;
+  }
+  .stext::after { content: "offline"; }
+
+  /* live when the master switch is on — driven by :has(), no JS coupling */
+  body:has(#enabled:checked) .status { color: var(--mm-acid); }
+  body:has(#enabled:checked) .sdot {
+    background: var(--mm-acid);
+    box-shadow: 0 0 8px var(--mm-acid);
+    animation: mm-pulse 2.4s var(--mm-ease) infinite;
+  }
+  body:has(#enabled:checked) .stext::after { content: "live"; }
+
+  @keyframes mm-pulse { 0%,100% { opacity: 1; } 50% { opacity: .4; } }
+
+  /* ── master controls ────────────────────────────────────────────────── */
+  .master {
+    display: grid;
+    gap: 12px;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--mm-line);
+  }
+
+  /* hidden-but-focusable native inputs; visuals live on siblings */
+  .vh {
+    position: absolute;
+    width: 1px; height: 1px;
+    margin: -1px; padding: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  /* the one primary action — hazard-yellow master switch */
+  .switch {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .swlabel {
+    flex: 1;
+    font-family: var(--mm-font-sans);
+    font-size: var(--mm-text-sm);
+    font-weight: 600;
+    color: var(--mm-fg-1);
+  }
+  .track {
+    position: relative;
+    flex: none;
+    width: 40px; height: 22px;
+    background: var(--mm-surface-2);
+    border: 1px solid var(--mm-line-bright);
+    border-radius: var(--mm-r-1);
+    transition: border-color var(--mm-t-fast) var(--mm-ease),
+                background var(--mm-t-fast) var(--mm-ease);
+  }
+  .knob {
+    position: absolute;
+    top: 2px; left: 2px;
+    width: 14px; height: 14px;
+    background: var(--mm-fg-3);
+    border-radius: 1px;
+    transition: transform var(--mm-t-fast) var(--mm-ease),
+                background var(--mm-t-fast) var(--mm-ease),
+                box-shadow var(--mm-t-fast) var(--mm-ease);
+  }
+  #enabled:checked + .track {
+    border-color: var(--mm-hazard);
+    background: var(--mm-hazard-glow);
+  }
+  #enabled:checked + .track .knob {
+    transform: translateX(18px);
+    background: var(--mm-hazard);
+    box-shadow: 0 0 10px var(--mm-hazard);
+  }
+  #enabled:focus-visible + .track {
+    border-color: var(--mm-hazard);
+    box-shadow: 0 0 0 3px var(--mm-hazard-glow);
+  }
+
+  /* sharp checkboxes for secondary booleans */
+  .check {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .check .ctext {
+    font-family: var(--mm-font-sans);
+    font-size: var(--mm-text-sm);
+    color: var(--mm-fg-2);
+  }
+  .box {
+    position: relative;
+    flex: none;
+    width: 17px; height: 17px;
+    background: var(--mm-ink);
+    border: 1px solid var(--mm-line-bright);
+    border-radius: var(--mm-r-1);
+    transition: border-color var(--mm-t-fast) var(--mm-ease),
+                background var(--mm-t-fast) var(--mm-ease);
+  }
+  .box::after {
+    content: "";
+    position: absolute;
+    left: 5px; top: 1px;
+    width: 4px; height: 9px;
+    border: solid var(--mm-acid);
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+    opacity: 0;
+    transition: opacity var(--mm-t-fast) var(--mm-ease);
+  }
+  .check input:checked + .box {
+    border-color: var(--mm-acid);
+    background: color-mix(in oklch, var(--mm-acid) 16%, transparent);
+  }
+  .check input:checked + .box::after { opacity: 1; }
+  .check input:focus-visible + .box {
+    border-color: var(--mm-acid);
+    box-shadow: 0 0 0 3px var(--mm-acid-glow);
+  }
+
+  /* ── feed channels ──────────────────────────────────────────────────── */
+  .feeds { display: grid; gap: 11px; padding: 12px 16px; }
+  .ch {
+    display: grid;
+    gap: 10px;
+    padding: 12px;
+    background: var(--mm-surface-1);
+    border: 1px solid var(--mm-line);
+    border-radius: var(--mm-r-1);
+  }
+  .chhd {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--mm-line);
+  }
+  .chname {
+    font-family: var(--mm-font-mono);
+    font-size: var(--mm-text-xs);
+    font-weight: 700;
+    letter-spacing: var(--mm-track-eye);
+    text-transform: uppercase;
+    color: var(--mm-fg-1);
+  }
+  .chdot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--mm-fg-4);
+    margin-left: auto;
+  }
+  .chstate {
+    font-family: var(--mm-font-mono);
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: var(--mm-track-eye);
+    text-transform: uppercase;
+    color: var(--mm-fg-3);
+  }
+  .chstate::after { content: "off"; }
+  /* a channel goes live when it has a real language selected (not "(off)") */
+  .ch:has(select option:not([value=""]):checked) .chdot {
+    background: var(--mm-acid);
+    box-shadow: 0 0 8px var(--mm-acid);
+  }
+  .ch:has(select option:not([value=""]):checked) .chstate { color: var(--mm-acid); }
+  .ch:has(select option:not([value=""]):checked) .chstate::after { content: "on"; }
+
+  .field { display: grid; gap: 6px; }
+  .field label {
+    font-family: var(--mm-font-mono);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: var(--mm-track-eye);
+    text-transform: uppercase;
+    color: var(--mm-fg-2);
+  }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 11px; }
+  .grid2.foot { grid-template-columns: 1fr auto; align-items: end; }
+
+  /* select — mm-input base + custom disclosure glyph */
+  .selwrap { position: relative; }
+  .selwrap select { appearance: none; padding-right: 30px; cursor: pointer; }
+  .selwrap::after {
+    content: "▾";
+    position: absolute;
+    right: 11px; top: 50%;
+    transform: translateY(-50%);
+    font-family: var(--mm-font-mono);
+    font-size: 11px;
+    color: var(--mm-fg-3);
+    pointer-events: none;
+  }
+
+  /* color chips */
+  input[type=color] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 30px;
+    padding: 0;
+    background: var(--mm-ink);
+    border: 1px solid var(--mm-line-bright);
+    border-radius: var(--mm-r-1);
+    cursor: pointer;
+  }
+  input[type=color]::-webkit-color-swatch-wrapper { padding: 3px; }
+  input[type=color]::-webkit-color-swatch { border: none; border-radius: 1px; }
+  input[type=color]:focus-visible {
+    outline: none;
+    border-color: var(--mm-acid);
+    box-shadow: 0 0 0 3px var(--mm-acid-glow);
+  }
+
+  /* opacity slider — value rides the label */
+  .field .lblrow { display: flex; justify-content: space-between; align-items: baseline; }
+  .field .lblrow b {
+    font-family: var(--mm-font-mono);
+    font-weight: 600;
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+    color: var(--mm-acid);
+    letter-spacing: 0;
+  }
+  input[type=range] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 16px;
+    background: transparent;
+    cursor: pointer;
+  }
+  input[type=range]::-webkit-slider-runnable-track {
+    height: 4px;
+    background: var(--mm-surface-2);
+    border: 1px solid var(--mm-line);
+    border-radius: var(--mm-r-1);
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 12px; height: 12px;
+    margin-top: -6px;
+    background: var(--mm-acid);
+    border: 1px solid var(--mm-acid);
+    border-radius: 1px;
+    box-shadow: 0 0 8px var(--mm-acid-glow);
+  }
+  input[type=range]:focus-visible { outline: none; }
+  input[type=range]:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 3px var(--mm-acid-glow); }
+
+  /* size — number field + unit */
+  .numwrap { display: flex; align-items: center; gap: 7px; }
+  .numwrap input[type=number] {
+    width: 58px;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+    -moz-appearance: textfield;
+  }
+  .numwrap input[type=number]::-webkit-inner-spin-button,
+  .numwrap input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+  .numwrap .unit {
+    font-family: var(--mm-font-mono);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: var(--mm-track-eye);
+    color: var(--mm-fg-3);
+  }
+
+  /* outline checkbox sits inline at the foot of a channel */
+  .opt { align-self: end; padding-bottom: 7px; }
+  .opt .ctext {
+    font-family: var(--mm-font-mono);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: var(--mm-track-eye);
+    text-transform: uppercase;
+    color: var(--mm-fg-2);
+  }
+
+  /* ── footer · status line ───────────────────────────────────────────── */
+  .ftr {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 11px 16px 14px;
+    border-top: 1px solid var(--mm-line);
+    background: var(--mm-ink);
+  }
+  .ftr .prompt { color: var(--mm-acid); font-family: var(--mm-font-mono); font-size: 12px; line-height: 1; flex: none; }
+  #hint {
+    margin: 0;
+    font-family: var(--mm-font-mono);
+    font-size: 11px;
+    color: var(--mm-fg-2);
+    letter-spacing: .01em;
+  }
+
+  /* scrollbar */
+  ::-webkit-scrollbar { width: 10px; }
+  ::-webkit-scrollbar-track { background: var(--mm-ink); }
+  ::-webkit-scrollbar-thumb { background: var(--mm-surface-3); border: 2px solid var(--mm-ink); border-radius: 0; }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
 </style>
 </head><body>
-  <label><input type="checkbox" id="enabled" style="width:auto"> Enable dual subtitles</label>
-  <label><input type="checkbox" id="native" style="width:auto"> Also show YouTube's original subtitles</label>
 
-  <fieldset>
-    <legend>Subtitle 1</legend>
-    <label>Language <select id="lang0"></select></label>
-    <div class="row"><label for="color0">Font color</label><input type="color" id="color0"></div>
-    <div class="row"><label for="bgColor0">Background color</label><input type="color" id="bgColor0"></div>
-    <label for="bgOpacity0">Background opacity <span id="bgOpacityVal0"></span></label>
-    <input type="range" id="bgOpacity0" min="0" max="100">
-    <div class="row"><label for="size0">Font size</label><input type="number" id="size0" min="10" max="80"></div>
-    <div class="row"><label for="outline0">Outline</label><input type="checkbox" id="outline0" style="width:auto"></div>
-  </fieldset>
+  <header class="hd">
+    <span class="mark" aria-hidden="true"></span>
+    <span class="id">
+      <span class="word">dual&#183;subs</span>
+      <span class="kick">caption console</span>
+    </span>
+    <span class="status">
+      <span class="sdot" aria-hidden="true"></span><span class="stext"></span>
+    </span>
+  </header>
 
-  <fieldset>
-    <legend>Subtitle 2</legend>
-    <label>Language <select id="lang1"></select></label>
-    <div class="row"><label for="color1">Font color</label><input type="color" id="color1"></div>
-    <div class="row"><label for="bgColor1">Background color</label><input type="color" id="bgColor1"></div>
-    <label for="bgOpacity1">Background opacity <span id="bgOpacityVal1"></span></label>
-    <input type="range" id="bgOpacity1" min="0" max="100">
-    <div class="row"><label for="size1">Font size</label><input type="number" id="size1" min="10" max="80"></div>
-    <div class="row"><label for="outline1">Outline</label><input type="checkbox" id="outline1" style="width:auto"></div>
-  </fieldset>
+  <div class="master">
+    <label class="switch">
+      <span class="swlabel">Enable dual subtitles</span>
+      <input type="checkbox" id="enabled" class="vh">
+      <span class="track" aria-hidden="true"><span class="knob"></span></span>
+    </label>
+    <label class="check">
+      <input type="checkbox" id="native" class="vh">
+      <span class="box" aria-hidden="true"></span>
+      <span class="ctext">Also show YouTube&#8217;s own captions</span>
+    </label>
+  </div>
 
-  <p id="hint"></p>
+  <div class="feeds">
+    <section class="ch">
+      <div class="chhd">
+        <span class="chname">CH.01</span>
+        <span class="chstate" aria-hidden="true"></span>
+        <span class="chdot" aria-hidden="true"></span>
+      </div>
+      <div class="field selwrap">
+        <label for="lang0">Source</label>
+        <select id="lang0" class="mm-input"></select>
+      </div>
+      <div class="grid2">
+        <div class="field">
+          <label for="color0">Text</label>
+          <input type="color" id="color0">
+        </div>
+        <div class="field">
+          <label for="bgColor0">Background</label>
+          <input type="color" id="bgColor0">
+        </div>
+      </div>
+      <div class="field">
+        <span class="lblrow"><label for="bgOpacity0">Background opacity</label><b id="bgOpacityVal0"></b></span>
+        <input type="range" id="bgOpacity0" min="0" max="100">
+      </div>
+      <div class="grid2 foot">
+        <div class="field">
+          <label for="size0">Size</label>
+          <span class="numwrap"><input type="number" id="size0" min="10" max="80" class="mm-input"><span class="unit">px</span></span>
+        </div>
+        <label class="check opt">
+          <input type="checkbox" id="outline0" class="vh">
+          <span class="box" aria-hidden="true"></span>
+          <span class="ctext">Outline</span>
+        </label>
+      </div>
+    </section>
+
+    <section class="ch">
+      <div class="chhd">
+        <span class="chname">CH.02</span>
+        <span class="chstate" aria-hidden="true"></span>
+        <span class="chdot" aria-hidden="true"></span>
+      </div>
+      <div class="field selwrap">
+        <label for="lang1">Source</label>
+        <select id="lang1" class="mm-input"></select>
+      </div>
+      <div class="grid2">
+        <div class="field">
+          <label for="color1">Text</label>
+          <input type="color" id="color1">
+        </div>
+        <div class="field">
+          <label for="bgColor1">Background</label>
+          <input type="color" id="bgColor1">
+        </div>
+      </div>
+      <div class="field">
+        <span class="lblrow"><label for="bgOpacity1">Background opacity</label><b id="bgOpacityVal1"></b></span>
+        <input type="range" id="bgOpacity1" min="0" max="100">
+      </div>
+      <div class="grid2 foot">
+        <div class="field">
+          <label for="size1">Size</label>
+          <span class="numwrap"><input type="number" id="size1" min="10" max="80" class="mm-input"><span class="unit">px</span></span>
+        </div>
+        <label class="check opt">
+          <input type="checkbox" id="outline1" class="vh">
+          <span class="box" aria-hidden="true"></span>
+          <span class="ctext">Outline</span>
+        </label>
+      </div>
+    </section>
+  </div>
+
+  <footer class="ftr">
+    <span class="prompt" aria-hidden="true">&#9656;</span>
+    <p id="hint"></p>
+  </footer>
+
   <script type="module" src="popup.js"></script>
 </body></html>
