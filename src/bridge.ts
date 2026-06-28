@@ -10,6 +10,7 @@
 import { parseWatchId } from './core/navigation'
 
 const ATTR = 'data-dual-subs-pr'
+const dlog = (...a: unknown[]) => { try { if (localStorage.getItem('dualSubsDebug') === '1') console.log('[uds.bridge]', ...a) } catch { /* debug only */ } }
 
 type PlayerResp = { videoDetails?: { videoId?: string } } | undefined
 
@@ -63,13 +64,21 @@ function forward(url: string, body: string): void {
   if (!body || !url.includes(TIMEDTEXT)) return
   const msg: CaptionMsg = { __dualSubsCaption: true, url, body }
   buffer.push(msg)
+  if (buffer.length > 12) buffer.shift() // bound it; recent captures are what a replay needs
+  try { const u = new URL(url); dlog('forward lang', u.searchParams.get('lang') || u.searchParams.get('tlang'), 'kind', u.searchParams.get('kind'), 'len', body.length, 'buf', buffer.length) } catch { /* debug only */ }
   window.postMessage(msg, '*')
 }
 
-// On SPA navigation: drop the previous video's captured captions (so a replay can't
-// hand them to the new video) and re-publish the new video's player response.
+// On SPA navigation, re-publish the new video's player response (its tracks). The
+// captured-caption buffer is intentionally NOT cleared here — see the note inside.
 document.addEventListener('yt-navigate-finish', () => {
-  buffer.length = 0
+  // Do NOT wipe the buffer here. The player often fetches the NEW video's captions a
+  // beat BEFORE this event fires; wiping dropped that capture, and since the player
+  // won't re-fetch an already-loaded track, the box stayed empty until a manual CC
+  // toggle. The content script filters captures by video id (the `v` in the timedtext
+  // URL), so a retained old-video capture can't leak into the new video — it's just
+  // ignored. Keep the buffer; only re-publish the new video's player response.
+  dlog('nav-finish: republish wantId', parseWatchId(location.href), 'buf', buffer.length)
   publishCurrent(parseWatchId(location.href))
 })
 
@@ -100,6 +109,7 @@ window.addEventListener('message', (e: MessageEvent) => {
   if (e.source !== window || !e.data) return
   const data = e.data as { __dualSubsReady?: boolean; __dualSubsLoad?: { languageCode?: string; asr?: boolean } }
   if (data.__dualSubsReady) {
+    dlog('replay', buffer.length, 'buffered msg(s)')
     for (const m of buffer) window.postMessage(m, '*') // replay captures the content script missed
     return
   }
@@ -109,13 +119,22 @@ window.addEventListener('message', (e: MessageEvent) => {
   if (!p) return
   try {
     p.loadModule?.('captions')
-    const list = (p.getOption?.('captions', 'tracklist', { includeAsr: true }) ?? []) as { languageCode?: string; kind?: string }[]
+    // Resolve the track from the CURRENT video's response (getPlayerResponse, already
+    // fresh) in preference to getOption('captions','tracklist'): right after an SPA nav
+    // the latter lags a beat and can still name the PREVIOUS video's track, so setOption-
+    // ing it makes the player fetch the wrong video — the box then stays empty until a
+    // manual CC toggle. The response captionTracks are the same objects the player builds
+    // its tracklist from, so setOption accepts them. Fall back to getOption.
+    const resp = currentPlayerResponse() as { captions?: { playerCaptionsTracklistRenderer?: { captionTracks?: { languageCode?: string; kind?: string }[] } } } | undefined
+    const respTracks = resp?.captions?.playerCaptionsTracklistRenderer?.captionTracks
+    const list = ((respTracks && respTracks.length ? respTracks : p.getOption?.('captions', 'tracklist', { includeAsr: true })) ?? []) as { languageCode?: string; kind?: string }[]
     const lc = req.languageCode
     const primary = lc.split('-')[0]
     const track = list.find((t) => t.languageCode === lc && (t.kind === 'asr') === !!req.asr) // exact lang + kind
       ?? list.find((t) => t.languageCode === lc)
       ?? list.find((t) => (t.languageCode ?? '').split('-')[0] === primary)
       ?? list[0]
+    dlog('load req', req.languageCode, 'asr', !!req.asr, 'src', respTracks && respTracks.length ? 'resp' : 'getOption', 'list', list.length, 'chose', (track as { languageCode?: string } | undefined)?.languageCode, 'setOption', !!track)
     if (track) p.setOption?.('captions', 'track', track)
   } catch { /* the player API shape varies across YouTube versions; best effort */ }
 })

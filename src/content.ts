@@ -5,7 +5,7 @@ import { toFraction, clampFraction, computeBoxRect } from './core/geometry'
 import { avoidOverlap } from './core/overlap'
 import { styleToCss } from './core/style'
 import { decideMountTarget } from './core/mount'
-import { pickTrack } from './core/track-select'
+import { pickTrack, captureMatchesBox } from './core/track-select'
 import { parseCaptions } from './core/parse'
 import { parseWatchId, videoChanged } from './core/navigation'
 import { createStorageAdapter } from './adapters/storage'
@@ -29,6 +29,7 @@ function tracksFromResponse(pr: PlayerResponse): CaptionTrack[] {
 // isolated world and cannot read it directly. The MAIN-world bridge content script
 // copies it into this DOM attribute for us to read.
 const BRIDGE_ATTR = 'data-dual-subs-pr'
+const dlog = (...a: unknown[]) => { try { if (localStorage.getItem('dualSubsDebug') === '1') console.log('[uds.content]', ...a) } catch { /* debug only */ } }
 
 function readBridgeResponse(): PlayerResponse {
   const raw = document.documentElement.getAttribute(BRIDGE_ATTR)
@@ -111,20 +112,31 @@ async function main() {
     if (!d || d.__dualSubsCaption !== true || !d.url || !d.body) return
     let capLang = ''
     let capAsr = false
+    let capV: string | null = null
     try {
       const u = new URL(d.url)
       capLang = (u.searchParams.get('lang') || u.searchParams.get('tlang') || '').toLowerCase()
       capAsr = u.searchParams.get('kind') === 'asr' // YouTube's auto-generated track
+      capV = u.searchParams.get('v')
     } catch { return }
+    // Only accept captions for the video on screen NOW. YouTube prefetches the autoplay-
+    // next video's captions, and a capture can surface mid-SPA-swap; both carry a
+    // different `v`. The buffer is replayed (not wiped) across navigations, so this gate
+    // — not buffer-clearing — is what keeps one video's text out of another's box.
+    const curV = parseWatchId(location.href)
+    if (capV && curV && capV !== curV) { dlog('caption v', capV, '!=', curV, 'skip'); return }
     const cues = parseCaptions(d.body)
     if (cues.length === 0) return
     // Assign to the box whose resolved track matches this captured one (language + asr).
+    let matched = false
     for (const box of settings.boxes) {
       const want = pickTrack(tracks, box.lang)
-      if (want && want.languageCode.toLowerCase() === capLang && (want.kind === 'asr') === capAsr) {
+      if (want && captureMatchesBox(box.lang, want, capLang, capAsr)) {
         cuesByBox[box.id] = cues
+        matched = true
       }
     }
+    dlog('caption capLang', capLang, 'asr', capAsr, 'cues', cues.length, matched ? 'ASSIGNED' : 'DROPPED', '| tracks', tracks.map((t) => t.languageCode), 'boxLangs', settings.boxes.map((b) => b.lang))
   })
   // NOTE: the replay request (`__dualSubsReady`) is issued from loadVideo() AFTER the
   // current video's `tracks` are known — replaying earlier would match captured cues
@@ -162,8 +174,11 @@ async function main() {
     const btn = document.querySelector<HTMLElement>('.ytp-subtitles-button')
     if (btn && btn.getAttribute('aria-pressed') === 'false') btn.click()
   }
+  const isStuck = () => settings.boxes.some((b) => pickTrack(tracks, b.lang) && (cuesByBox[b.id]?.length ?? 0) === 0)
   async function startLoading() {
     const gen = ++loadGen
+    let nudged = false
+    dlog('startLoading gen', gen, 'ccPressed', document.querySelector('.ytp-subtitles-button')?.getAttribute('aria-pressed'))
     for (let round = 0; round < 10 && gen === loadGen && settings.enabled; round++) {
       clickCCifOff()
       let pending = false
@@ -174,12 +189,31 @@ async function main() {
         if ((cuesByBox[box.id]?.length ?? 0) > 0) continue
         pending = true
         // bridge → player.setOption(track); send the resolved track (incl. asr kind).
+        dlog('startLoading gen', gen, 'round', round, box.id, 'post-load', want.languageCode, want.kind === 'asr' ? 'asr' : '')
         window.postMessage({ __dualSubsLoad: { languageCode: want.languageCode, asr: want.kind === 'asr' } }, '*')
         await sleep(1600) // let the player switch + fetch + bridge capture
       }
       if (!pending) break
+      // A wanted box is still empty after a full round — the player likely has an empty/
+      // stale track loaded and ignores setOption for it (e.g. its first pot-gated fetch
+      // came back empty while captions were default-on, and there's no second language to
+      // make it switch). Dislodge it by switching to a DIFFERENT track; the next round
+      // re-selects the wanted one, which the player now treats as a real change and
+      // re-fetches. (A plain CC off→on toggle proved unreliable here; a track switch is
+      // the same mechanism the player honours when two boxes alternate languages.)
+      if (!nudged && gen === loadGen && isStuck()) {
+        nudged = true
+        const wanted = new Set(settings.boxes.map((b) => pickTrack(tracks, b.lang)?.languageCode).filter(Boolean))
+        const other = tracks.find((t) => !wanted.has(t.languageCode)) ?? tracks.find((t) => t.kind === 'asr' && wanted.has(t.languageCode))
+        if (other) {
+          dlog('startLoading gen', gen, 'nudge →', other.languageCode, other.kind ?? '')
+          window.postMessage({ __dualSubsLoad: { languageCode: other.languageCode, asr: other.kind === 'asr' } }, '*')
+          await sleep(1600) // let the player switch away, so the next round's re-select re-fetches
+        }
+      }
       await sleep(500)
     }
+    dlog('startLoading gen', gen, 'exit cues', settings.boxes.map((b) => cuesByBox[b.id]?.length ?? 0))
   }
 
   // Apply popup changes live, no page refresh needed.
@@ -191,9 +225,10 @@ async function main() {
   function applySettings(next: Settings) {
     settings.enabled = next.enabled
     settings.nativeSubtitles = next.nativeSubtitles
+    let langChanged = false
     next.boxes.forEach((nb, i) => {
       const box = settings.boxes[i]!
-      if (box.lang !== nb.lang) { box.lang = nb.lang; cuesByBox[box.id] = [] } // re-fetch new language
+      if (box.lang !== nb.lang) { box.lang = nb.lang; cuesByBox[box.id] = []; langChanged = true } // re-fetch new language
       box.style = nb.style
       views[box.id]!.setStyle(styleToCss(nb.style))
     })
@@ -203,6 +238,12 @@ async function main() {
       setNativeHidden(false)
     } else {
       setNativeHidden(!settings.nativeSubtitles) // keep YouTube's captions if the user opted in
+      // A language change just cleared that box's cues. The player may already have the
+      // track loaded, so startLoading's setOption won't trigger a fresh fetch — but the
+      // bridge still has the capture buffered, so ask it to replay; captureMatchesBox
+      // re-routes it to the now-correct box. Without this, re-selecting a source the
+      // player already loaded (e.g. off→on, or A→B→A) leaves the box empty.
+      if (langChanged) window.postMessage({ __dualSubsReady: true }, '*')
       void startLoading()
     }
   }
@@ -215,13 +256,15 @@ async function main() {
   async function loadVideo() {
     const myNav = ++navGen
     loadGen++ // cancel any caption loading still in flight for the previous video
+    dlog('loadVideo nav#', myNav, 'videoId', currentVideoId)
     for (const box of settings.boxes) {
       cuesByBox[box.id] = []
       tickStates[box.id] = initTick() // reset cue cursor so the old video's text can't linger
     }
     const fresh = await findTracksFor(currentVideoId)
-    if (myNav !== navGen) return // a newer navigation took over while we waited
+    if (myNav !== navGen) { dlog('loadVideo nav#', myNav, 'superseded'); return } // a newer navigation took over while we waited
     tracks = fresh
+    dlog('loadVideo nav#', myNav, 'tracks', tracks.map((t) => t.languageCode + (t.kind === 'asr' ? ':asr' : '')))
     // Now that tracks are known, ask the bridge to replay any caption responses it
     // captured before we were ready to match them (initial load + post-navigation).
     window.postMessage({ __dualSubsReady: true }, '*')

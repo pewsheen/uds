@@ -1,10 +1,14 @@
 import { test, expect, chromium, type BrowserContext } from '@playwright/test'
 import { fileURLToPath } from 'node:url'
 import { readFile } from 'node:fs/promises'
+import { createHash } from 'node:crypto'
 import path from 'node:path'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const dist = path.resolve(here, '../../dist')
+
+// Unpacked-extension id: first 128 bits of SHA-256(absolute path), each nibble 0-f → a-p.
+const extId = (p: string) => { const h = createHash('sha256').update(p).digest('hex'); let id = ''; for (let i = 0; i < 32; i++) id += String.fromCharCode(97 + parseInt(h[i]!, 16)); return id }
 const htmlPath = path.resolve(here, 'fixtures/fake-youtube.html')
 const json3Path = path.resolve(here, 'fixtures/timedtext.json3')
 
@@ -188,4 +192,42 @@ test('re-parents the subtitle layer into the fullscreen element on fullscreen', 
   await page.evaluate(() => document.exitFullscreen())
   await page.waitForFunction(() => !document.fullscreenElement, null, { timeout: 5000 })
   await expect(page.locator('body > #dual-subs-layer')).toBeAttached({ timeout: 5000 })
+})
+
+test('re-selecting a box source (off → on) re-fills it without a reload', async () => {
+  const page = await context.newPage()
+  await routeFixtures(page)
+  await page.goto('https://www.youtube.com/watch?v=fixture')
+
+  const box0 = page.locator('.dual-subs-box').first()
+  await expect(page.locator('#dual-subs-layer')).toBeAttached({ timeout: 10000 })
+  await page.evaluate(() => (window as unknown as { __setTime: (t: number) => void }).__setTime(1))
+  await expect(box0).toContainText('Hello from the fixture')
+
+  // Drive the REAL popup → chrome.storage → the content script's storage.onChanged,
+  // exactly as the user does when they change a box's source in the popup.
+  const sw = context.serviceWorkers()[0]
+  const id = sw ? new URL(sw.url()).host : extId(dist)
+  const popup = await context.newPage()
+  await popup.goto(`chrome-extension://${id}/popup/popup.html`)
+  await expect(popup.locator('#enabled')).toBeAttached()
+
+  const STYLE = { fontSizePx: 24, color: '#ffffff', bgColor: '#000000', bgOpacity: 0.55, fontFamily: 'system-ui', outline: true }
+  const base = { enabled: true, nativeSubtitles: false, boxes: [{ id: 'sub1', lang: 'en', style: STYLE }, { id: 'sub2', lang: 'zh-Hant', style: STYLE }] }
+  const setLang0 = (l: string) => popup.evaluate(async ({ l, base }) => {
+    const got = await chrome.storage.sync.get('dualSubsSettings') as { dualSubsSettings?: typeof base }
+    const s = got.dualSubsSettings ?? base
+    s.boxes[0]!.lang = l
+    await chrome.storage.sync.set({ dualSubsSettings: s })
+  }, { l, base })
+
+  await setLang0('')                                  // source OFF: box clears
+  await expect(box0).not.toContainText('Hello', { timeout: 5000 })
+  await setLang0('en')                                // source back ON
+  await page.evaluate(() => (window as unknown as { __setTime: (t: number) => void }).__setTime(1))
+  await expect(box0).toContainText('Hello from the fixture', { timeout: 5000 }) // refills — no reload, no CC toggle
+
+  await popup.evaluate(() => chrome.storage.sync.clear()) // don't leak settings into other tests
+  await popup.close()
+  await page.close()
 })
