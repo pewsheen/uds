@@ -21,10 +21,12 @@ function samePlacement(a: Placement | undefined, b: Placement): boolean {
   return !!a && a.anchor === b.anchor && a.vEdge === b.vEdge && a.fx === b.fx && a.fy === b.fy
 }
 
+// Detect boxes that still use one exact placement across every display mode.
 function allModesMatch(boxConfig: BoxConfig, placement: Placement): boolean {
   return MODES.every((mode) => samePlacement(boxConfig.posByMode[mode], placement))
 }
 
+// Move only untouched legacy defaults apart; custom dragged positions are preserved.
 function separateLegacyOverlappedBoxes(boxes: BoxConfig[]): BoxConfig[] {
   if (boxes.length < 2) return boxes
   if (!allModesMatch(boxes[0]!, LEGACY_OVERLAPPED_PLACEMENT) || !allModesMatch(boxes[1]!, LEGACY_OVERLAPPED_PLACEMENT)) return boxes
