@@ -1,16 +1,33 @@
 import { test, expect, chromium, type BrowserContext } from '@playwright/test'
 import { fileURLToPath } from 'node:url'
 import { readFile } from 'node:fs/promises'
-import { createHash } from 'node:crypto'
 import path from 'node:path'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const dist = path.resolve(here, '../../dist')
 
-// Unpacked-extension id: first 128 bits of SHA-256(absolute path), each nibble 0-f → a-p.
-const extId = (p: string) => { const h = createHash('sha256').update(p).digest('hex'); let id = ''; for (let i = 0; i < 32; i++) id += String.fromCharCode(97 + parseInt(h[i]!, 16)); return id }
 const htmlPath = path.resolve(here, 'fixtures/fake-youtube.html')
 const json3Path = path.resolve(here, 'fixtures/timedtext.json3')
+
+type RuntimeContext = { origin?: string; name?: string }
+
+async function extensionIdFromContentScript(page: import('@playwright/test').Page): Promise<string> {
+  const session = await context.newCDPSession(page)
+  const contexts: RuntimeContext[] = []
+  session.on('Runtime.executionContextCreated', (event: { context: RuntimeContext }) => contexts.push(event.context))
+  await session.send('Runtime.enable')
+  try {
+    for (let i = 0; i < 20; i++) {
+      const origin = contexts.find((c) => c.name === 'YouTube Dual Subtitles' && c.origin?.startsWith('chrome-extension://'))?.origin
+        ?? contexts.find((c) => c.origin?.startsWith('chrome-extension://'))?.origin
+      if (origin) return new URL(origin).host
+      await page.waitForTimeout(100)
+    }
+    throw new Error('Could not find the extension content-script context')
+  } finally {
+    await session.detach().catch(() => {})
+  }
+}
 
 let context: BrowserContext
 
@@ -58,17 +75,21 @@ test('injects, renders both boxes, syncs, drags', async () => {
   const boxes = page.locator('.dual-subs-box')
   await expect(boxes).toHaveCount(2)
 
-  // Sync: at t=1 the first cue is active.
+  // Sync: at t=1 the first cue is active in both independently loaded boxes.
   await page.evaluate(() => (window as unknown as { __setTime: (t: number) => void }).__setTime(1))
   await expect(boxes.first()).toContainText('Hello from the fixture')
+  await expect(boxes.last()).toContainText('Hello from the fixture')
+  const firstRect = await boxes.first().boundingBox()
+  const secondRect = await boxes.last().boundingBox()
+  expect(firstRect).not.toBeNull()
+  expect(secondRect).not.toBeNull()
+  expect(firstRect!.y + firstRect!.height <= secondRect!.y || secondRect!.y + secondRect!.height <= firstRect!.y).toBe(true)
 
   // Sync: at t=4 the second cue is active.
   await page.evaluate(() => (window as unknown as { __setTime: (t: number) => void }).__setTime(4))
   await expect(boxes.first()).toContainText('Second line of text')
 
-  // Both boxes share the same default position and overlap exactly, so the LAST box
-  // (sub2) is the one on top and the one that actually receives pointer events. Drag it
-  // to a point clearly OUTSIDE the player rect and assert its anchor flips to 'page'.
+  // Drag the second box to a point clearly OUTSIDE the player rect and assert its anchor flips to 'page'.
   const draggable = boxes.last()
   const player = page.locator('#movie_player')
   const playerBox = await player.boundingBox()
@@ -206,8 +227,7 @@ test('re-selecting a box source (off → on) re-fills it without a reload', asyn
 
   // Drive the REAL popup → chrome.storage → the content script's storage.onChanged,
   // exactly as the user does when they change a box's source in the popup.
-  const sw = context.serviceWorkers()[0]
-  const id = sw ? new URL(sw.url()).host : extId(dist)
+  const id = await extensionIdFromContentScript(page)
   const popup = await context.newPage()
   await popup.goto(`chrome-extension://${id}/popup/popup.html`)
   await expect(popup.locator('#enabled')).toBeAttached()

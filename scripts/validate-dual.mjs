@@ -5,7 +5,7 @@ import { chromium } from '@playwright/test'
 import path from 'node:path'
 
 const DIST = path.resolve('dist')
-const VIDEO = 'https://www.youtube.com/watch?v=aircAruvnKk'
+const VIDEO = process.env.VIDEO_URL || 'https://www.youtube.com/watch?v=aircAruvnKk'
 const log = (...a) => console.log(...a)
 
 const json3 = (label) => JSON.stringify({ events: [{ tStartMs: 0, dDurationMs: 600000, segs: [{ utf8: label }] }] })
