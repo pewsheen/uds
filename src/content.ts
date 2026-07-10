@@ -1,4 +1,4 @@
-import type { Anchor, BoxConfig, CaptionTrack, Cue, DisplayMode, Fraction, Rect, Settings, VEdge } from './core/types'
+import type { Anchor, BoxConfig, CaptionTrack, Cue, DisplayMode, Fraction, Placement, Rect, Settings, VEdge } from './core/types'
 import { initTick, tick } from './core/tick'
 import { resolveAnchor } from './core/anchor'
 import { toFraction, clampFraction, computeBoxRect } from './core/geometry'
@@ -92,6 +92,12 @@ async function main() {
   // relative to the player. Drag AND render must agree on this, or boxes snap back.
   const refBoxFor = (anchor: Anchor): Rect => (anchor === 'video' ? player.playerRect() : viewportRect())
   const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
+  const hasPageAnchors = () => !location.hostname.endsWith('primevideo.com')
+  const normalizeAnchor = (anchor: Anchor): Anchor => hasPageAnchors() ? anchor : 'video'
+  const placeFor = (box: BoxConfig): Placement => {
+    const place = box.posByMode[player.displayMode()]
+    return hasPageAnchors() ? place : { ...place, anchor: 'video' }
+  }
 
   const initialMode: DisplayMode = player.displayMode()
   for (const box of settings.boxes) {
@@ -179,12 +185,13 @@ async function main() {
     const fsEl = player.fullscreenEl()
     renderer.ensureMount(decideMountTarget(player.displayMode(), fsEl !== null), fsEl)
     const t = player.currentTime()
+    const clockReady = player.clockReady()
     for (const box of settings.boxes) {
-      const res = tick(tickStates[box.id]!, t, cuesByBox[box.id] ?? [])
+      const res = clockReady ? tick(tickStates[box.id]!, t, cuesByBox[box.id] ?? []) : tick(tickStates[box.id]!, 0, [])
       tickStates[box.id] = res.state
       if (res.renderCommand) views[box.id]!.setText(res.renderCommand.text)
       if (draggingId !== box.id) {
-        const place = box.posByMode[player.displayMode()]
+        const place = placeFor(box)
         views[box.id]!.place({ fx: place.fx, fy: place.fy }, refBoxFor(place.anchor), place.vEdge, place.anchor)
       }
     }
@@ -347,7 +354,7 @@ async function main() {
       e.preventDefault()
       e.stopPropagation()
       const point = { x: e.clientX, y: e.clientY }
-      const anchor = resolveAnchor(point, player.playerRect())
+      const anchor = normalizeAnchor(resolveAnchor(point, player.playerRect()))
       const refBox = refBoxFor(anchor)
       let f: Fraction = toFraction(point, refBox)
       // vEdge hysteresis: only flip top/bottom outside a deadband around the midline,
@@ -367,8 +374,10 @@ async function main() {
       renderer.hideGlow()
       void (async () => {
         const me = box.posByMode[player.displayMode()]
+        if (!hasPageAnchors()) me.anchor = 'video'
         const other = settings.boxes.find((b) => b.id !== box.id)!
         const otherPlace = other.posByMode[player.displayMode()]
+        if (!hasPageAnchors()) otherPlace.anchor = 'video'
         if (me.anchor === otherPlace.anchor) {
           const ref = refBoxFor(me.anchor)
           const myRect = computeBoxRect({ fx: me.fx, fy: me.fy }, ref, view.measure(), me.vEdge)
