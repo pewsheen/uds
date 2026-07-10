@@ -1,6 +1,6 @@
-# YouTube Dual Subtitles
+# Dual Subtitles
 
-> Two independent, draggable, styleable subtitle tracks on YouTube — pick a language for each, position them anywhere, always on top.
+> Two independent, draggable, styleable subtitle tracks on YouTube and Prime Video — pick a language for each, position them anywhere, always on top.
 
 A Manifest V3 Chrome extension that overlays **two** caption tracks on a YouTube video at once (e.g. original + your native language). Each box is independently configurable: its own language, font size, color, background, and on-screen position — and each remembers its place per display mode (default / theater / fullscreen / miniplayer).
 
