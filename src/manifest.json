@@ -1,13 +1,14 @@
 {
   "manifest_version": 3,
-  "name": "YouTube Dual Subtitles",
+  "name": "Dual Subtitles",
   "version": "0.0.1",
-  "description": "Two independent, draggable, styleable subtitle tracks on YouTube.",
+  "description": "Two independent, draggable, styleable subtitle tracks on supported video sites.",
   "permissions": ["storage"],
-  "host_permissions": ["https://www.youtube.com/*"],
+  "host_permissions": ["https://www.youtube.com/*", "https://www.primevideo.com/*", "https://fe.primevideo.com/*", "https://cf-timedtext.aux.pv-cdn.net/*"],
   "action": { "default_popup": "popup/popup.html" },
+  "background": { "service_worker": "background.js", "type": "module" },
   "content_scripts": [
-    { "matches": ["https://www.youtube.com/*"], "js": ["bridge.js"], "run_at": "document_start", "world": "MAIN" },
-    { "matches": ["https://www.youtube.com/*"], "js": ["content.js"], "run_at": "document_idle" }
+    { "matches": ["https://www.youtube.com/*", "https://www.primevideo.com/*", "https://fe.primevideo.com/*"], "js": ["bridge.js"], "run_at": "document_start", "world": "MAIN" },
+    { "matches": ["https://www.youtube.com/*", "https://www.primevideo.com/*", "https://fe.primevideo.com/*"], "js": ["content.js"], "run_at": "document_idle" }
   ]
 }

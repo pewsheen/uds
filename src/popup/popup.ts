@@ -54,7 +54,7 @@ async function init() {
   const tracks = await queryTracks()
   $('hint').textContent = tracks.length
     ? `${tracks.length} subtitle track(s) on this video`
-    : 'Open a YouTube video to list its subtitle tracks'
+    : 'Open a supported video to list its subtitle tracks'
 
   s.boxes.forEach((box, i) => {
     const lang = $<HTMLSelectElement>(`lang${i}`)
@@ -87,3 +87,4 @@ async function init() {
   })
 }
 void init()
+

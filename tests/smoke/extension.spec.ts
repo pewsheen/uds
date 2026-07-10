@@ -7,6 +7,7 @@ const here = path.dirname(fileURLToPath(import.meta.url))
 const dist = path.resolve(here, '../../dist')
 
 const htmlPath = path.resolve(here, 'fixtures/fake-youtube.html')
+const primeHtmlPath = path.resolve(here, 'fixtures/fake-prime.html')
 const json3Path = path.resolve(here, 'fixtures/timedtext.json3')
 
 type RuntimeContext = { origin?: string; name?: string }
@@ -279,4 +280,60 @@ test('refresh with default-on captions refetches a single already-selected track
 
   await page.evaluate(() => (window as unknown as { __setTime: (t: number) => void }).__setTime(1))
   await expect(box0).toContainText('Hello from the fixture', { timeout: 15000 })
+})
+
+
+test('Prime Video detail page discovers subtitle tracks and renders fetched captions', async () => {
+  const page = await context.newPage()
+  const errors: string[] = []
+  page.on('pageerror', (e) => errors.push(String(e)))
+
+  await page.route(/https:\/\/(?:www|fe)\.primevideo\.com\/(?:region\/[^/]+\/)?detail\/.*/, async (route) => {
+    const html = await readFile(primeHtmlPath, 'utf8')
+    await route.fulfill({ status: 200, contentType: 'text/html', body: html })
+  })
+  await page.route('https://fe.primevideo.com/playback/GetPlaybackResources**', async (route) => {
+    const titleId = new URL(route.request().url()).searchParams.get('titleId') ?? 'prime-fixture'
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        titleId,
+        subtitleUrls: [
+          { timedTextTrackId: 'en-track', url: `https://fe.primevideo.com/subtitles/${titleId}/en-US.vtt?sig=fixture` },
+          { timedTextTrackId: 'zh-track', url: `https://fe.primevideo.com/subtitles/${titleId}/zh-Hant.ttml2?sig=fixture` },
+        ],
+        subtitleMetadata: {
+          timedTextTracks: [
+            { timedTextTrackId: 'en-track', languageCode: 'en-US', displayName: 'English' },
+            { timedTextTrackId: 'zh-track', languageCode: 'zh-Hant', displayName: 'Chinese Traditional' },
+          ],
+        },
+      }),
+    })
+  })
+  await page.route('https://fe.primevideo.com/subtitles/**/en-US.vtt**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'text/vtt',
+      body: 'WEBVTT\n\n00:00:00.000 --> 00:00:09.000\nPrime English caption',
+    })
+  })
+  await page.route('https://fe.primevideo.com/subtitles/**/zh-Hant.ttml2**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/ttml+xml',
+      body: '<tt><body><div><p begin="0s" end="9s">Prime Chinese caption</p></div></body></tt>',
+    })
+  })
+
+  await page.goto('https://fe.primevideo.com/region/fe/detail/0SS3O1MC4E0TW4GF0V1E4KD06T?ref_=atv_plr_landingpage_play')
+
+  const boxes = page.locator('.dual-subs-box')
+  await expect(page.locator('#dual-subs-layer')).toBeAttached({ timeout: 10000 })
+  await expect(boxes).toHaveCount(2)
+  await page.evaluate(() => (window as unknown as { __setTime: (t: number) => void }).__setTime(1))
+  await expect(boxes.first()).toContainText('Prime English caption', { timeout: 10000 })
+  await expect(boxes.last()).toContainText('Prime Chinese caption', { timeout: 10000 })
+  expect(errors, errors.join('\n')).toHaveLength(0)
 })

@@ -77,9 +77,9 @@ async function main() {
   })
 
   const settings: Settings = await store.load()
-  // `tracks` is the CURRENT video's caption tracks. It is refreshed on every SPA
-  // navigation (YouTube swaps videos without a reload), so it must be mutable and
-  // outlive any single video — the caption listener and loader both read it.
+  // `tracks` is the CURRENT video's caption tracks. It is refreshed on every supported
+  // site navigation, so it must be mutable and outlive any single video -- the
+  // caption listener and loader both read it.
   let tracks: CaptionTrack[] = []
 
   const cuesByBox: Record<string, Cue[]> = {}
@@ -104,25 +104,26 @@ async function main() {
     attachDrag(box, view)
   }
 
-  // Cues come from the player's OWN caption responses, forwarded by the MAIN-world
-  // bridge (YouTube gates timedtext with a `pot` token only the player can mint).
+  // Cues come from provider caption responses, forwarded by the MAIN-world bridge.
+  // YouTube is captured from the native player; Prime can also be fetched directly
+  // from signed subtitle URLs discovered in its playback metadata.
   window.addEventListener('message', (e: MessageEvent) => {
     if (e.source !== window) return
-    const d = e.data as { __dualSubsCaption?: boolean; url?: string; body?: string } | null
+    const d = e.data as { __dualSubsCaption?: boolean; url?: string; body?: string; languageCode?: string; videoId?: string | null; asr?: boolean } | null
     if (!d || d.__dualSubsCaption !== true || !d.url || !d.body) return
-    let capLang = ''
-    let capAsr = false
-    let capV: string | null = null
+    let capLang = (d.languageCode ?? '').toLowerCase()
+    let capAsr = d.asr === true
+    let capV: string | null = d.videoId ?? null
     try {
       const u = new URL(d.url)
-      capLang = (u.searchParams.get('lang') || u.searchParams.get('tlang') || '').toLowerCase()
-      capAsr = u.searchParams.get('kind') === 'asr' // YouTube's auto-generated track
-      capV = u.searchParams.get('v')
-    } catch { return }
-    // Only accept captions for the video on screen NOW. YouTube prefetches the autoplay-
-    // next video's captions, and a capture can surface mid-SPA-swap; both carry a
-    // different `v`. The buffer is replayed (not wiped) across navigations, so this gate
-    // — not buffer-clearing — is what keeps one video's text out of another's box.
+      capLang ||= (u.searchParams.get('lang') || u.searchParams.get('tlang') || '').toLowerCase()
+      capAsr ||= u.searchParams.get('kind') === 'asr'
+      capV ??= u.searchParams.get('v')
+    } catch { /* opaque provider URL; bridge metadata may still identify it */ }
+    if (!capLang) { dlog('caption missing language', d.url); return }
+    // Only accept captions for the video on screen NOW. Providers may prefetch adjacent
+    // titles, and a capture can surface mid-SPA-swap. The bridge includes a provider id
+    // when URLs do not carry one, so this guard still blocks stale captions.
     const curV = parseWatchId(location.href)
     if (capV && curV && capV !== curV) { dlog('caption v', capV, '!=', curV, 'skip'); return }
     const cues = parseCaptions(d.body)
@@ -138,13 +139,37 @@ async function main() {
     }
     dlog('caption capLang', capLang, 'asr', capAsr, 'cues', cues.length, matched ? 'ASSIGNED' : 'DROPPED', '| tracks', tracks.map((t) => t.languageCode), 'boxLangs', settings.boxes.map((b) => b.lang))
   })
+  window.addEventListener('message', (e: MessageEvent) => {
+    if (e.source !== window) return
+    const d = e.data as { __dualSubsFetchViaExtension?: boolean; url?: string; languageCode?: string; videoId?: string | null; asr?: boolean } | null
+    if (!d?.__dualSubsFetchViaExtension || !d.url) return
+    void (async () => {
+      try {
+        const res = await chrome.runtime.sendMessage({ type: 'dual-subs:fetchCaption', url: d.url }) as { ok?: boolean; body?: string; error?: string; status?: number } | undefined
+        if (!res?.ok || !res.body) {
+          dlog('extension fetch failed', d.url, res?.status ?? '', res?.error ?? '')
+          return
+        }
+        window.postMessage({
+          __dualSubsCaption: true,
+          url: d.url,
+          body: res.body,
+          languageCode: d.languageCode,
+          videoId: d.videoId,
+          asr: d.asr,
+        }, '*')
+      } catch (error) {
+        dlog('extension fetch threw', d.url, String(error))
+      }
+    })()
+  })
   // NOTE: the replay request (`__dualSubsReady`) is issued from loadVideo() AFTER the
   // current video's `tracks` are known — replaying earlier would match captured cues
   // against an empty track list and silently drop them.
 
-  // Hide YouTube's own caption text so it doesn't overlap our boxes — only while enabled.
+  // Hide the provider's own caption text so it doesn't overlap our boxes -- only while enabled.
   const hideNative = document.createElement('style')
-  hideNative.textContent = '.ytp-caption-window-container, .caption-window { display: none !important; }'
+  hideNative.textContent = '.ytp-caption-window-container, .caption-window, [class*="textTrack" i] { display: none !important; }'
   function setNativeHidden(hidden: boolean) {
     if (hidden && !hideNative.isConnected) document.documentElement.appendChild(hideNative)
     else if (!hidden && hideNative.isConnected) hideNative.remove()
@@ -248,7 +273,7 @@ async function main() {
       for (const box of settings.boxes) cuesByBox[box.id] = []
       setNativeHidden(false)
     } else {
-      setNativeHidden(!settings.nativeSubtitles) // keep YouTube's captions if the user opted in
+      setNativeHidden(!settings.nativeSubtitles) // keep native provider captions if the user opted in
       // A language change just cleared that box's cues. The player may already have the
       // track loaded, so startLoading's setOption won't trigger a fresh fetch — but the
       // bridge still has the capture buffered, so ask it to replay; captureMatchesBox
@@ -285,10 +310,17 @@ async function main() {
     }
   }
 
-  // YouTube swaps videos via its Polymer router (no document reload). Detect it two
-  // ways for robustness: the page's own `yt-navigate-finish` event (a custom DOM event
-  // visible to this isolated-world content script), plus a cheap URL poll as a fallback
-  // in case the cross-world event doesn't reach us on some YouTube/Chrome versions.
+  window.addEventListener('message', (e: MessageEvent) => {
+    if (e.source !== window) return
+    const d = e.data as { __dualSubsTracksChanged?: boolean } | null
+    if (d?.__dualSubsTracksChanged) {
+      currentVideoId = parseWatchId(location.href)
+      if (currentVideoId) void loadVideo()
+    }
+  })
+
+  // Supported sites can swap videos without a document reload. Detect YouTube's own
+  // router event when available, plus a cheap URL poll that also covers Prime Video.
   function onMaybeNavigated() {
     const next = parseWatchId(location.href)
     const changed = videoChanged(currentVideoId, next)
@@ -357,3 +389,6 @@ async function main() {
 }
 
 void main()
+
+
+

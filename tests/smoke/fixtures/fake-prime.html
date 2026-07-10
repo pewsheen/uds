@@ -1,0 +1,21 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Fake Prime Video</title>
+<style>
+  body{margin:0;background:#05070a;color:white}
+  #dv-web-player{position:relative;width:900px;height:506px;background:#111;margin:24px auto}
+  video{width:100%;height:100%;display:block;background:#111}
+</style>
+</head>
+<body>
+  <main>
+    <div id="dv-web-player" data-testid="web-player">
+      <video src=""></video>
+    </div>
+  </main>
+  <script>
+    const titleId = location.pathname.split('/').filter(Boolean).pop() || 'prime-fixture'
+    const v = document.querySelector('video')
+    window.__setTime = (t) => { v.currentTime = t }
+    fetch('/playback/GetPlaybackResources?titleId=' + encodeURIComponent(titleId) + '&desiredResources=SubtitleUrls,SubtitleMetadata').catch(() => {})
+  </script>
+</body></html>

@@ -34,3 +34,9 @@ test('videoChanged is true only when the id actually differs', () => {
   expect(videoChanged('a', null)).toBe(false) // leaving a video → don't tear down / reload
   expect(videoChanged(null, null)).toBe(false)
 })
+
+test('parseWatchId reads Prime Video detail ids', () => {
+  expect(parseWatchId('https://www.primevideo.com/detail/0SS3O1MC4E0TW4GF0V1E4KD06T')).toBe('0SS3O1MC4E0TW4GF0V1E4KD06T')
+  expect(parseWatchId('https://www.primevideo.com/region/fe/detail/0SS3O1MC4E0TW4GF0V1E4KD06T?ref_=atv_plr_landingpage_play')).toBe('0SS3O1MC4E0TW4GF0V1E4KD06T')
+  expect(parseWatchId('https://www.primevideo.com/gp/video/detail/B0ABCDE123/ref=atv_dp')).toBe('B0ABCDE123')
+})

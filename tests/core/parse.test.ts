@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest'
 import { readFileSync } from 'node:fs'
-import { parseTimedText } from '../../src/core/parse'
+import { parseTimedText, parseTtml, parseWebVtt } from '../../src/core/parse'
 
 const xml = readFileSync(new URL('../../fixtures/timedtext-sample.xml', import.meta.url), 'utf8')
 
@@ -28,3 +28,33 @@ test('out-of-order cues are sorted ascending by start', () => {
     '<text start="2" dur="1">second</text>'
   expect(parseTimedText(xml).map((c) => c.text)).toEqual(['first', 'second', 'third'])
 })
+
+test('parses WebVTT cues', () => {
+  const cues = parseWebVtt(`WEBVTT
+
+intro
+00:00:01.000 --> 00:00:03.500 line:90%
+Hello <i>Prime</i>
+Video
+
+00:00:04.000 --> 00:00:05.000
+Second &amp; line`)
+
+  expect(cues).toEqual([
+    { start: 1, end: 3.5, text: 'Hello Prime\nVideo' },
+    { start: 4, end: 5, text: 'Second & line' },
+  ])
+})
+
+test('parses TTML/DFXP cues', () => {
+  const cues = parseTtml(`<tt><body><div>
+    <p begin="00:00:01.000" end="00:00:03.000">Hello<br/>Prime</p>
+    <p begin="4s" dur="1.5s">Second &amp; line</p>
+  </div></body></tt>`)
+
+  expect(cues).toEqual([
+    { start: 1, end: 3, text: 'Hello\nPrime' },
+    { start: 4, end: 5.5, text: 'Second & line' },
+  ])
+})
+
