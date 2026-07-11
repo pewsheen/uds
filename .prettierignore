@@ -1,0 +1,8 @@
+dist/
+docs/
+node_modules/
+reports/
+test-results/
+.stryker-tmp/
+.claude/worktrees/
+pnpm-lock.yaml

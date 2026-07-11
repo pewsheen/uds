@@ -1,106 +1,137 @@
 # Dual Subtitles
 
-> Two independent, draggable, styleable subtitle tracks on YouTube and Prime Video — pick a language for each, position them anywhere, always on top.
+Two independent, draggable, styleable subtitle tracks for YouTube and Prime Video.
 
-A Manifest V3 Chrome extension that overlays **two** caption tracks on a YouTube video at once (e.g. original + your native language). Each box is independently configurable: its own language, font size, color, background, and on-screen position — and each remembers its place per display mode (default / theater / fullscreen / miniplayer).
-
-Under the hood it's also a **rigor-harness demo**: all decision logic lives in a pure, dependency-free `src/core/` that's exercised by property, golden, and mutation tests, with the browser surface pushed into thin, replaceable adapters. See [Architecture](#architecture).
+Dual Subtitles is a Manifest V3 Chrome extension that renders two caption tracks at
+the same time. Each box has its own language, position, font, color, background,
+outline, and per-display-mode position.
 
 ## Features
 
-- **Two simultaneous subtitle tracks** — each with its own language, drawn from the languages the video actually offers (auto-translated tracks included).
-- **Drag to position** — drop a box anywhere; it snaps between *page-anchored* and *video-anchored* with a live glow showing the target, and the two boxes auto-avoid overlapping.
-- **Per-mode memory** — positions are saved separately for default, theater, fullscreen, and miniplayer.
-- **Per-box styling** — font size, color, background opacity, font family, and text outline.
-- **Fullscreen-aware** — the subtitle layer re-parents into/out of the fullscreen element on the fly, preserving its contents.
-- **Keep or hide native captions** — optionally leave YouTube's own captions visible alongside your two boxes.
-- **Live settings** — changes from the popup apply instantly, no page reload.
+- Two simultaneous subtitle tracks from the current video's available languages.
+- YouTube and Prime Video provider support.
+- Independent dragging with page/video anchoring and overlap avoidance.
+- Position memory for default, theater, fullscreen, and miniplayer modes.
+- Live popup settings without a page reload.
+- Optional native YouTube captions alongside the extension overlays.
+- SPA navigation detection so tracks refresh when the site swaps videos.
 
-## Install (load unpacked)
+## Requirements
 
-This extension is not yet published to the Chrome Web Store.
+- Node.js 22 or newer.
+- pnpm 11.11.0 (the version pinned in `package.json`).
+- Chrome for manual signed-in streaming tests.
+
+Enable the pinned package manager if necessary:
 
 ```bash
-npm install
-npm run build      # bundles to dist/
+corepack enable
+corepack install
 ```
 
-1. Open `chrome://extensions`
-2. Enable **Developer mode**
-3. Click **Load unpacked** and select the `dist/` folder
-4. Open any YouTube video, click the extension icon, choose two languages, and enable
+## Install the extension
 
-> **Note:** YouTube gates caption fetching behind a token only the player can mint and rate-limits unauthenticated requests, so this works best in your normal, logged-in Chrome profile.
-
-## Usage
-
-Click the toolbar icon to open the popup:
-
-- **Enable dual subtitles** — master on/off
-- **Also show YouTube's original subtitles** — keep the native caption layer visible
-- **Subtitle 1 / Subtitle 2** — pick a language for each box from the video's available tracks
-- **Font size** — applies to the boxes
-
-Then on the video, **drag** either box to reposition it. The glow shows whether it will anchor to the page or to the player.
-
-## Architecture
-
-The codebase is split so that all logic is testable without a browser:
-
-```
-src/
-├── core/        ← pure. Never imports chrome / document / window / fetch (lint-enforced).
-│   ├── parse.ts          XML/JSON3 timedtext → Cue[]
-│   ├── parse-json3.ts    JSON3 caption parsing
-│   ├── entities.ts       HTML entity decoding
-│   ├── cue-select.ts     active cue for a timestamp
-│   ├── tick.ts           render-on-change reducer
-│   ├── lifecycle.ts      state machine (idle → loading → active / error)
-│   ├── track-select.ts   match a requested language to an available track
-│   ├── anchor.ts         page vs. video anchoring + vertical edge
-│   ├── geometry.ts       fraction ↔ pixel, box rect, clamping
-│   ├── overlap.ts        rect overlap + auto-avoidance
-│   ├── style.ts          StyleSettings → CSS
-│   ├── mount.ts          decide mount target for a display mode
-│   └── types.ts
-├── adapters/    ← thin wiring. No decisions, no branching logic.
-│   ├── storage.ts        chrome.storage.sync
-│   ├── player.ts         <video>, currentTime, display mode, fullscreen element
-│   ├── renderer.ts       draws the overlay layer + drag glow
-│   └── clock.ts          requestAnimationFrame
-├── content.ts   ← composition root: wires adapters to the core loop
-├── bridge.ts    ← MAIN-world script (see below)
-├── popup/       ← settings UI
-└── manifest.json
+```bash
+pnpm install
+pnpm build
 ```
 
-**The MAIN-world bridge.** `ytInitialPlayerResponse` (which lists caption tracks) and the player's caption fetches are page-world globals an isolated content script can't reach. [`src/bridge.ts`](src/bridge.ts) runs in the `MAIN` world and republishes them to the content script via a DOM attribute and `window.postMessage`.
+Then:
+
+1. Open `chrome://extensions`.
+2. Enable **Developer mode**.
+3. Select **Load unpacked**.
+4. Choose this repository's `dist/` directory.
+5. Open a captioned YouTube or Prime Video title and configure both tracks from the
+   extension popup.
+
+After rebuilding, select **Reload** on the extension card before retesting.
 
 ## Development
 
-```bash
-npm run verify        # inner loop: typecheck + lint + unit/property/contract tests
-npm run verify:full   # verify + golden + mutation + build + smoke
+Use pnpm consistently; `pnpm-lock.yaml` is the canonical lockfile.
+
+| Command              | Purpose                                                               |
+| -------------------- | --------------------------------------------------------------------- |
+| `pnpm format`        | Format supported project files with Prettier.                         |
+| `pnpm format:check`  | Check formatting without changing files.                              |
+| `pnpm lint`          | Run ESLint, including core purity checks.                             |
+| `pnpm lint:fix`      | Apply safe ESLint fixes.                                              |
+| `pnpm typecheck`     | Run strict TypeScript checking.                                       |
+| `pnpm test:unit`     | Run core, property, and adapter contract tests.                       |
+| `pnpm test:golden`   | Verify approved parser snapshots.                                     |
+| `pnpm test:mutation` | Run Stryker; the build fails below an 85% score.                      |
+| `pnpm build`         | Bundle the extension into `dist/`.                                    |
+| `pnpm test:smoke`    | Run Playwright against deterministic fixture sites.                   |
+| `pnpm verify`        | Format check, typecheck, lint, and unit tests.                        |
+| `pnpm verify:full`   | Run every deterministic CI check, including mutation and smoke tests. |
+
+For a fast inner loop, run the focused test first and then `pnpm verify`. Before
+hand-off, run `pnpm verify:full`.
+
+## Real Chrome testing
+
+Fixture and automated-browser tests cannot prove that the extension works with an
+existing signed-in streaming session, ads, DRM playback, or current production DOM.
+Agents must follow
+[`.agents/skills/real-chrome-streaming-tests/SKILL.md`](.agents/skills/real-chrome-streaming-tests/SKILL.md)
+for user-observable checks on both YouTube and Prime Video.
+
+The short version:
+
+1. Build and reload `dist/` in real Chrome.
+2. Use the existing Chrome profile; never inspect or export cookies, passwords, or
+   session storage.
+3. Verify two tracks, cue changes, dragging, display-mode remounting, style updates,
+   and same-site navigation.
+4. Account for YouTube ads and Prime detail-page preview videos before asserting
+   against the active player.
+5. Record the tested URL/title, settings, expected result, actual result, and visual
+   evidence.
+
+If authentication blocks a requested test, ask the user to sign in in Chrome and say
+when it is ready. Do not substitute web search or an automated browser for the
+signed-in check.
+
+## Architecture
+
+```text
+src/
+├── core/        Pure decision logic; no DOM, Chrome API, fetch, or timers.
+├── adapters/    Browser wiring for storage, playback, rendering, and clocks.
+├── providers/   YouTube and Prime Video discovery/capture integrations.
+├── content.ts   Composition root and overlay lifecycle.
+├── bridge.ts    Main-world access to player data and caption responses.
+├── background.ts
+├── popup/
+└── manifest.json
 ```
 
-Individual steps:
+The `src/core/` boundary is lint-enforced and heavily tested with examples,
+properties, golden snapshots, and mutation testing. Browser-specific behavior stays
+in adapters/providers so the core remains deterministic.
 
-| Command | What |
-|---|---|
-| `npm run typecheck` | `tsc --noEmit` (strict) |
-| `npm run lint` | ESLint, incl. the `no-DOM-in-core` rule |
-| `npm run test:unit` | Vitest — core + adapter contract tests |
-| `npm run test:golden` | Parser snapshot test |
-| `npm run test:mutation` | Stryker mutation testing (core only, ≥85% gate) |
-| `npm run build` | esbuild bundle → `dist/` |
-| `npm run test:smoke` | Playwright against a fixed fixture page |
+### Caption delivery
 
-The `core/` purity (no `chrome`/`document`/`window`/`fetch`) is enforced by lint, which keeps the decision logic deterministic and mutation-testable.
+YouTube's player may require proof-of-origin data for timed-text responses. The
+main-world bridge captures caption responses made by the player and republishes them
+to the isolated content script; a plain fetch of a track URL is not a reliable
+replacement.
 
-## Tech stack
+Prime Video exposes several response shapes and may show a muted preview video on a
+detail page. The provider merges partial track records and the player adapter waits
+for the visible, loaded playback timeline.
 
-TypeScript · esbuild · Vitest · fast-check (property tests) · Stryker (mutation testing) · Playwright (smoke) · Chrome Manifest V3.
+## Project guidance
+
+- [`AGENTS.md`](AGENTS.md) is the repository-wide instruction file for coding agents.
+- [`CLAUDE.md`](CLAUDE.md) is the Claude-specific entry point and defers to
+  `AGENTS.md`.
+- [`docs/PLANNING_TEMPLATE.md`](docs/PLANNING_TEMPLATE.md) is the risk-first planning
+  template for changes involving production DOM, streaming network behavior, or UX.
 
 ## Status
 
-Early (`v0.0.1`). The full pipeline — injection, track discovery, parsing, rendering, drag, fullscreen remount — is implemented and tested. Known rough edge: per-box caption fetch needs more graceful degradation when a single track is rate-limited or missing.
+Early development (`v0.0.1`). The extension, test harness, and live validation
+drivers are implemented; streaming sites can still change their DOM and caption
+delivery without notice, so real-Chrome verification remains part of release work.

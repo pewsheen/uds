@@ -1,0 +1,4 @@
+interface:
+  display_name: "Real Chrome Streaming Tests"
+  short_description: "Test streaming extensions in signed-in Chrome"
+  default_prompt: "Use $real-chrome-streaming-tests to verify this extension on YouTube and Prime Video in real Chrome."

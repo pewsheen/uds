@@ -1,78 +1,51 @@
-# CLAUDE.md — youtube-dual-subs (uds)
+# CLAUDE.md
 
-A Manifest V3 Chrome extension: two independent, draggable, styleable subtitle boxes on
-YouTube. Built behind a rigor harness so an agent can self-iterate.
+Read and follow [`AGENTS.md`](AGENTS.md) before changing this repository. It is the
+canonical project instruction file; this document only highlights Claude-specific
+entry points and high-cost pitfalls.
 
-## Architecture (ports & adapters)
+## Working loop
 
-- **`src/core/**`** — pure functions, every decision lives here. **No `chrome`, `document`,
-  `window`, `fetch`, `requestAnimationFrame`** (lint-enforced: `no-restricted-globals` +
-  no importing adapters). Tested hard (unit + property + golden + mutation).
-- **`src/adapters/**`** — thin browser wiring (storage, player, renderer). No business logic.
-- **`src/content.ts`** — composition root (isolated world): builds the overlay, runs the
-  rAF render loop, drag, live-settings, and sources cues from the bridge.
-- **`src/bridge.ts`** — runs in the page **MAIN world** (`"world": "MAIN"` in the manifest).
-  Publishes `ytInitialPlayerResponse` to a DOM attr, and **captures the player's caption
-  responses** (see below).
-- **`src/popup/`** — settings UI (enable, language selectors from the video's real tracks,
-  font, "show original YT subtitles").
-- Build: **`node build.mjs`** (esbuild) → `dist/`.
+1. Use the pinned pnpm toolchain.
+2. Add or update the smallest failing test before changing behavior.
+3. Run the focused test, then `pnpm verify`.
+4. Run `pnpm test:mutation` for changes under `src/core/`.
+5. Run `pnpm verify:full` before hand-off.
+6. For user-visible streaming behavior, invoke
+   [`$real-chrome-streaming-tests`](.agents/skills/real-chrome-streaming-tests/SKILL.md).
 
-## How captions actually work (READ THIS before touching caption code)
+Formatting is enforced by `pnpm format:check`; use `pnpm format` to apply the
+repository style.
 
-YouTube gates the `timedtext` endpoint with a **`pot` (proof-of-origin) token** the player
-mints via BotGuard. **A plain `fetch` of the caption `baseUrl` returns an empty 200** — you
-cannot fetch captions yourself, and `tlang` self-translation also returns empty. So:
+## Architecture constraints
 
-- `bridge.ts` monkey-patches `fetch`/`XMLHttpRequest` to **capture the player's own caption
-  responses** and `postMessage`s them to `content.ts` (buffered + replayed on request).
-- `content.ts` auto-enables YouTube CC (clicks `.ytp-subtitles-button` + asks the bridge to
-  `setOption('captions','track',…)`) to trigger those fetches, parses (`parseCaptions` →
-  json3 or srv1), and renders. It loads **one language at a time** (the player fetches one
-  track at once). No translation — boxes match the video's own tracks via `pickTrack`.
+- Keep `src/core/**` pure. It must not use `chrome`, `document`, `window`,
+  `fetch`, or `requestAnimationFrame`, and it must not import adapters.
+- Put browser mechanics in `src/adapters/**` and provider-specific discovery in
+  `src/providers/**`.
+- Treat `src/content.ts` as the composition root and `src/bridge.ts` as privileged
+  main-world plumbing.
+- Preserve settings compatibility when adding fields; test malformed and legacy
+  storage shapes.
 
-## Testing
+## Streaming pitfalls
 
-- `npm run verify` — typecheck + lint + unit (`vitest tests/core tests/adapters`). Run this
-  for most changes.
-- `npm run verify:full` — verify + golden + **mutation (stryker, core ≥ 85%)** + build + smoke.
-- `npm run test:smoke` — Playwright. **Extensions only load in Playwright's bundled Chromium
-  (`channel: 'chromium'`), NOT Chrome Stable** (148 ignores `--load-extension`). Smoke uses a
-  fake-youtube fixture that *fetches* timedtext so the bridge captures it (mirrors the real
-  player path).
-- `npm run test:live` + `scripts/validate-*.mjs` — **real-environment** drivers (open real
-  youtube.com in bundled Chromium). Keep these; they are first-class.
-- **You CAN run a full live test of the extension yourself — no human needed.** Build (`node
-  build.mjs`), then drive real youtube.com in bundled Chromium with `dist/` loaded. The
-  pot/BotGuard wall is sidestepped by **routing `**/api/timedtext**` to a substituted json3
-  body** (stamp it per video id / language so swaps are provable). With that, caption
-  *rendering* and ALL plumbing — injection, bridge re-publish, track discovery, per-video
-  re-init on SPA nav, drag, fullscreen — are verifiable unattended. Only real pot-gated
-  caption *bodies* still need a logged-in non-automated browser. **Default to verifying your
-  fix this way instead of asking the user to test by hand.** Example/driver:
-  `npm run test:live:nav` (`scripts/validate-nav.mjs`) does real in-page SPA navigation
-  between recommended videos and asserts tracks + captions refresh without a reload.
-  - **Ads break naive assertions.** A pre-roll ad loads as a *separate* video first:
-    `getPlayerResponse()` / `currentTime` / track list reflect the AD, not your video, until
-    it ends. Skip it (`.ytp-ad-skip-button`, `.ytp-ad-skip-button-modern`) or seek the ad
-    `<video>` to its end, and keep polling — never assert on the first few seconds after load.
-- **TDD is the default**: write the failing test first (see `superpowers:test-driven-development`).
+- Do not fetch YouTube timed-text URLs as if they were ordinary public resources.
+  The player may require a proof-of-origin token; the bridge captures the player's
+  own responses.
+- A YouTube pre-roll ad is a different video. Skip or finish it and wait until the
+  requested title and caption tracks are active before asserting.
+- Prime detail pages can contain a visible preview separate from the loaded playback
+  timeline. Assert against the active, loaded player.
+- Playwright fixture tests and routed timed-text responses validate plumbing, not a
+  signed-in production session.
+- Chrome may require the unpacked extension to be reloaded after every build.
+- Never inspect or export browser cookies, passwords, local storage, or profile data.
+  If sign-in is required, ask the user to sign in in Chrome and confirm readiness.
 
-## Environment gotchas (cost real debugging time — don't relearn them)
+## Planning
 
-- **Chrome Stable ignores `--load-extension`** (137+, confirmed 148). Use Playwright's bundled
-  Chromium, or load unpacked via `chrome://extensions` (needed when you require a logged-in
-  session, e.g. age-gated videos).
-- **Automated browsers can't reproduce real captions.** Playwright/CDP trip BotGuard → the
-  player's own `pot` request returns empty. You can validate the *plumbing* by routing
-  `**/api/timedtext**` to a substituted json3 body; final caption verification needs a real,
-  non-automated browser. Age-gated videos (`playabilityStatus: LOGIN_REQUIRED`) need login.
-- `chrome-devtools-mcp` launches its own `--disable-extensions` Chrome — useless for testing
-  this extension.
-
-## Planning / process
-
-For new features touching these seams (network/pot, real DOM, drag/UX), use the
-**`risk-first-planning`** skill and `docs/PLANNING_TEMPLATE.md`: spike the riskiest
-real-environment assumption *first*, and define "done" by a real-environment, user-observable
-check — not just green tests. See the case study in that doc for why.
+Use [`docs/PLANNING_TEMPLATE.md`](docs/PLANNING_TEMPLATE.md) for work that depends on
+production DOM, caption network behavior, drag/fullscreen UX, or another fragile
+external seam. Prove the riskiest assumption early and define completion with a
+user-observable check.

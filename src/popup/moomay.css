@@ -9,106 +9,109 @@
 */
 
 /* ---------- Fonts ---------- */
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&family=VT323&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&family=VT323&display=swap");
 
 :root {
   /* ---------- Color — core ---------- */
-  --mm-black:       #08070d;   /* page — Night City deep violet-black */
-  --mm-ink:         #0d0c16;   /* surface 0 */
-  --mm-surface-1:   #12111e;   /* card */
-  --mm-surface-2:   #191827;   /* raised card */
-  --mm-surface-3:   #232133;   /* hover */
-  --mm-line:        #221f35;   /* hairline border */
-  --mm-line-bright: #332f4a;   /* stronger border */
+  --mm-black: #08070d; /* page — Night City deep violet-black */
+  --mm-ink: #0d0c16; /* surface 0 */
+  --mm-surface-1: #12111e; /* card */
+  --mm-surface-2: #191827; /* raised card */
+  --mm-surface-3: #232133; /* hover */
+  --mm-line: #221f35; /* hairline border */
+  --mm-line-bright: #332f4a; /* stronger border */
 
   /* Foreground scale */
-  --mm-fg-1:        #e8f1e5;   /* primary text */
-  --mm-fg-2:        #a7b5a3;   /* secondary */
-  --mm-fg-3:        #6b7a73;   /* tertiary / metadata */
-  --mm-fg-4:        #3d4a44;   /* disabled / grid */
+  --mm-fg-1: #e8f1e5; /* primary text */
+  --mm-fg-2: #a7b5a3; /* secondary */
+  --mm-fg-3: #6b7a73; /* tertiary / metadata */
+  --mm-fg-4: #3d4a44; /* disabled / grid */
 
   /* ---------- Color — brand signals ---------- */
-  --mm-acid:        #00f5ff;   /* PRIMARY — neon cyan, "live / signal / netrunner" */
-  --mm-acid-dim:    #009db5;
-  --mm-acid-glow:   #00f5ff2e;
-  --mm-phos:        #b8ffff;   /* soft cyan, terminal output */
+  --mm-acid: #00f5ff; /* PRIMARY — neon cyan, "live / signal / netrunner" */
+  --mm-acid-dim: #009db5;
+  --mm-acid-glow: #00f5ff2e;
+  --mm-phos: #b8ffff; /* soft cyan, terminal output */
 
-  --mm-hazard:      #fcee09;   /* SECONDARY — CP2077 yellow, primary CTAs / warnings */
-  --mm-hazard-dim:  #c4bb00;
+  --mm-hazard: #fcee09; /* SECONDARY — CP2077 yellow, primary CTAs / warnings */
+  --mm-hazard-dim: #c4bb00;
   --mm-hazard-glow: #fcee0933;
 
-  --mm-magenta:     #ff2a6d;   /* rare accent — critical alerts, selection */
-  --mm-orange:      #ff6b00;   /* warm accent — secondary alerts */
-  --mm-cyan:        #00f5ff;   /* link / info (same as acid) */
-  --mm-red:         #ff3d5a;   /* destructive */
+  --mm-magenta: #ff2a6d; /* rare accent — critical alerts, selection */
+  --mm-orange: #ff6b00; /* warm accent — secondary alerts */
+  --mm-cyan: #00f5ff; /* link / info (same as acid) */
+  --mm-red: #ff3d5a; /* destructive */
 
   /* Semantic */
-  --mm-success:     var(--mm-acid);
-  --mm-warning:     var(--mm-hazard);
-  --mm-danger:      var(--mm-red);
-  --mm-info:        var(--mm-cyan);
+  --mm-success: var(--mm-acid);
+  --mm-warning: var(--mm-hazard);
+  --mm-danger: var(--mm-red);
+  --mm-info: var(--mm-cyan);
 
   /* ---------- Type ---------- */
-  --mm-font-mono:    'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
-  --mm-font-sans:    'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
-  --mm-font-crt:     'VT323', 'JetBrains Mono', monospace;   /* pixel/CRT moments only */
+  --mm-font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --mm-font-sans: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --mm-font-crt:
+    "VT323", "JetBrains Mono", monospace; /* pixel/CRT moments only */
 
   /* Scale — base 16 */
-  --mm-text-xs:   11px;
-  --mm-text-sm:   13px;
-  --mm-text-md:   15px;
-  --mm-text-lg:   18px;
-  --mm-text-xl:   22px;
-  --mm-text-2xl:  28px;
-  --mm-text-3xl:  36px;
-  --mm-text-4xl:  48px;
-  --mm-text-5xl:  64px;
-  --mm-text-6xl:  88px;
+  --mm-text-xs: 11px;
+  --mm-text-sm: 13px;
+  --mm-text-md: 15px;
+  --mm-text-lg: 18px;
+  --mm-text-xl: 22px;
+  --mm-text-2xl: 28px;
+  --mm-text-3xl: 36px;
+  --mm-text-4xl: 48px;
+  --mm-text-5xl: 64px;
+  --mm-text-6xl: 88px;
 
   --mm-leading-tight: 1.1;
-  --mm-leading-snug:  1.25;
-  --mm-leading-body:  1.5;
+  --mm-leading-snug: 1.25;
+  --mm-leading-body: 1.5;
   --mm-leading-loose: 1.7;
 
   --mm-track-tight: -0.02em;
-  --mm-track-mono:   0;
-  --mm-track-eye:    0.08em;     /* label tracking */
-  --mm-track-scream: 0.18em;     /* section kickers */
+  --mm-track-mono: 0;
+  --mm-track-eye: 0.08em; /* label tracking */
+  --mm-track-scream: 0.18em; /* section kickers */
 
   /* ---------- Spacing ---------- */
-  --mm-s-1:  4px;
-  --mm-s-2:  8px;
-  --mm-s-3:  12px;
-  --mm-s-4:  16px;
-  --mm-s-5:  24px;
-  --mm-s-6:  32px;
-  --mm-s-7:  48px;
-  --mm-s-8:  64px;
-  --mm-s-9:  96px;
+  --mm-s-1: 4px;
+  --mm-s-2: 8px;
+  --mm-s-3: 12px;
+  --mm-s-4: 16px;
+  --mm-s-5: 24px;
+  --mm-s-6: 32px;
+  --mm-s-7: 48px;
+  --mm-s-8: 64px;
+  --mm-s-9: 96px;
 
   /* ---------- Radii ---------- */
   --mm-r-0: 0px;
-  --mm-r-1: 2px;     /* default — we're sharp */
+  --mm-r-1: 2px; /* default — we're sharp */
   --mm-r-2: 4px;
   --mm-r-pill: 999px;
 
   /* ---------- Shadows / glow ---------- */
   --mm-shadow-inset: inset 0 0 0 1px var(--mm-line);
-  --mm-shadow-card:  0 0 0 1px var(--mm-line), 0 20px 40px -20px rgba(0,0,0,0.6);
-  --mm-glow-acid:    0 0 0 1px var(--mm-acid), 0 0 24px var(--mm-acid-glow);
-  --mm-glow-hazard:  0 0 0 1px var(--mm-hazard), 0 0 24px var(--mm-hazard-glow);
-  --mm-glow-soft:    0 0 40px rgba(0, 245, 255, 0.08);
+  --mm-shadow-card:
+    0 0 0 1px var(--mm-line), 0 20px 40px -20px rgba(0, 0, 0, 0.6);
+  --mm-glow-acid: 0 0 0 1px var(--mm-acid), 0 0 24px var(--mm-acid-glow);
+  --mm-glow-hazard: 0 0 0 1px var(--mm-hazard), 0 0 24px var(--mm-hazard-glow);
+  --mm-glow-soft: 0 0 40px rgba(0, 245, 255, 0.08);
 
   /* ---------- Motion ---------- */
   --mm-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
   --mm-ease-snap: cubic-bezier(0.6, 0, 0.2, 1);
   --mm-t-fast: 120ms;
-  --mm-t-med:  220ms;
+  --mm-t-med: 220ms;
   --mm-t-slow: 420ms;
 }
 
 /* ---------- Base reset-ish ---------- */
-html, body {
+html,
+body {
   background: var(--mm-black);
   color: var(--mm-fg-1);
   font-family: var(--mm-font-sans);
@@ -156,16 +159,45 @@ html, body {
   color: var(--mm-fg-2);
 }
 
-.mm-body     { font-size: var(--mm-text-md); line-height: var(--mm-leading-body); color: var(--mm-fg-1); }
-.mm-body-sm  { font-size: var(--mm-text-sm); line-height: var(--mm-leading-body); color: var(--mm-fg-2); }
-.mm-meta     { font-family: var(--mm-font-mono); font-size: var(--mm-text-xs); color: var(--mm-fg-3); letter-spacing: var(--mm-track-eye); text-transform: uppercase; }
-.mm-code     { font-family: var(--mm-font-mono); font-size: var(--mm-text-sm); color: var(--mm-phos); background: var(--mm-ink); padding: 2px 6px; border: 1px solid var(--mm-line); border-radius: var(--mm-r-1); }
-.mm-crt      { font-family: var(--mm-font-crt); font-size: var(--mm-text-2xl); color: var(--mm-phos); letter-spacing: 0.02em; }
+.mm-body {
+  font-size: var(--mm-text-md);
+  line-height: var(--mm-leading-body);
+  color: var(--mm-fg-1);
+}
+.mm-body-sm {
+  font-size: var(--mm-text-sm);
+  line-height: var(--mm-leading-body);
+  color: var(--mm-fg-2);
+}
+.mm-meta {
+  font-family: var(--mm-font-mono);
+  font-size: var(--mm-text-xs);
+  color: var(--mm-fg-3);
+  letter-spacing: var(--mm-track-eye);
+  text-transform: uppercase;
+}
+.mm-code {
+  font-family: var(--mm-font-mono);
+  font-size: var(--mm-text-sm);
+  color: var(--mm-phos);
+  background: var(--mm-ink);
+  padding: 2px 6px;
+  border: 1px solid var(--mm-line);
+  border-radius: var(--mm-r-1);
+}
+.mm-crt {
+  font-family: var(--mm-font-crt);
+  font-size: var(--mm-text-2xl);
+  color: var(--mm-phos);
+  letter-spacing: 0.02em;
+}
 
 /* ---------- Utility — scanline bg ---------- */
 .mm-scanlines {
-  background-image:
-    linear-gradient(rgba(0,245,255,0.04) 50%, transparent 50%);
+  background-image: linear-gradient(
+    rgba(0, 245, 255, 0.04) 50%,
+    transparent 50%
+  );
   background-size: 100% 3px;
 }
 
@@ -203,29 +235,43 @@ html, body {
   cursor: pointer;
   transition: all var(--mm-t-fast) var(--mm-ease);
 }
-.mm-btn:hover { background: var(--mm-surface-3); border-color: var(--mm-fg-3); }
-.mm-btn:active { transform: translateY(1px); }
+.mm-btn:hover {
+  background: var(--mm-surface-3);
+  border-color: var(--mm-fg-3);
+}
+.mm-btn:active {
+  transform: translateY(1px);
+}
 
 .mm-btn--primary {
   background: var(--mm-hazard);
   color: var(--mm-black);
   border-color: var(--mm-hazard);
 }
-.mm-btn--primary:hover { box-shadow: var(--mm-glow-hazard); background: var(--mm-hazard); }
+.mm-btn--primary:hover {
+  box-shadow: var(--mm-glow-hazard);
+  background: var(--mm-hazard);
+}
 
 .mm-btn--signal {
   background: transparent;
   color: var(--mm-acid);
   border-color: var(--mm-acid);
 }
-.mm-btn--signal:hover { box-shadow: var(--mm-glow-acid); background: color-mix(in oklch, var(--mm-acid) 10%, transparent); }
+.mm-btn--signal:hover {
+  box-shadow: var(--mm-glow-acid);
+  background: color-mix(in oklch, var(--mm-acid) 10%, transparent);
+}
 
 .mm-btn--ghost {
   background: transparent;
   border-color: var(--mm-line);
   color: var(--mm-fg-2);
 }
-.mm-btn--ghost:hover { color: var(--mm-fg-1); border-color: var(--mm-fg-3); }
+.mm-btn--ghost:hover {
+  color: var(--mm-fg-1);
+  border-color: var(--mm-fg-3);
+}
 
 .mm-input {
   display: block;
@@ -240,7 +286,11 @@ html, body {
   font-size: var(--mm-text-sm);
   caret-color: var(--mm-acid);
 }
-.mm-input:focus { outline: none; border-color: var(--mm-acid); box-shadow: 0 0 0 3px var(--mm-acid-glow); }
+.mm-input:focus {
+  outline: none;
+  border-color: var(--mm-acid);
+  box-shadow: 0 0 0 3px var(--mm-acid-glow);
+}
 
 .mm-badge {
   display: inline-flex;
@@ -256,14 +306,23 @@ html, body {
   border: 1px solid currentColor;
   border-radius: var(--mm-r-1);
 }
-.mm-badge--live { color: var(--mm-acid); }
-.mm-badge--warn { color: var(--mm-hazard); }
-.mm-badge--err  { color: var(--mm-red); }
-.mm-badge--idle { color: var(--mm-fg-3); }
+.mm-badge--live {
+  color: var(--mm-acid);
+}
+.mm-badge--warn {
+  color: var(--mm-hazard);
+}
+.mm-badge--err {
+  color: var(--mm-red);
+}
+.mm-badge--idle {
+  color: var(--mm-fg-3);
+}
 
 .mm-dot {
   display: inline-block;
-  width: 6px; height: 6px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
   background: currentColor;
   box-shadow: 0 0 8px currentColor;

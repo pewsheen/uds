@@ -1,21 +1,53 @@
 <!doctype html>
-<html><head><meta charset="utf-8"><title>Fake Prime Video</title>
-<style>
-  body{margin:0;background:#05070a;color:white}
-  #dv-web-player{position:relative;width:1000px;height:600px;background:#111;margin:24px auto;display:grid;place-items:center}
-  video{width:900px;height:506px;display:block;background:#050505}
-</style>
-</head>
-<body>
-  <main>
-    <div id="dv-web-player" data-testid="web-player">
-      <video src="" data-dual-subs-duration="1470.976" data-dual-subs-ready-state="4"></video>
-    </div>
-  </main>
-  <script>
-    const titleId = location.pathname.split('/').filter(Boolean).pop() || 'prime-fixture'
-    const v = document.querySelector('video')
-    window.__setTime = (t) => { v.currentTime = t }
-    fetch('/playback/GetPlaybackResources?titleId=' + encodeURIComponent(titleId) + '&desiredResources=SubtitleUrls,SubtitleMetadata').catch(() => {})
-  </script>
-</body></html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Fake Prime Video</title>
+    <style>
+      body {
+        margin: 0;
+        background: #05070a;
+        color: white;
+      }
+      #dv-web-player {
+        position: relative;
+        width: 1000px;
+        height: 600px;
+        background: #111;
+        margin: 24px auto;
+        display: grid;
+        place-items: center;
+      }
+      video {
+        width: 900px;
+        height: 506px;
+        display: block;
+        background: #050505;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div id="dv-web-player" data-testid="web-player">
+        <video
+          src=""
+          data-dual-subs-duration="1470.976"
+          data-dual-subs-ready-state="4"
+        ></video>
+      </div>
+    </main>
+    <script>
+      const titleId =
+        location.pathname.split("/").filter(Boolean).pop() || "prime-fixture";
+      const v = document.querySelector("video");
+      window.__setTime = (t) => {
+        v.currentTime = t;
+      };
+      fetch(
+        "/playback/GetPlaybackResources?titleId=" +
+          encodeURIComponent(titleId) +
+          "&desiredResources=SubtitleUrls,SubtitleMetadata",
+      ).catch(() => {});
+    </script>
+  </body>
+</html>

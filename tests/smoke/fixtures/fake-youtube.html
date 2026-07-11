@@ -1,89 +1,144 @@
 <!doctype html>
-<html><head><meta charset="utf-8"><title>Fake YouTube</title>
-<style>#movie_player{position:relative;width:800px;height:450px;background:#111;margin:20px}</style>
-</head>
-<body>
-  <ytd-watch-flexy>
-    <div id="movie_player" class="html5-video-player">
-      <video class="html5-main-video" src=""></video>
-      <button class="ytp-subtitles-button" aria-pressed="true">CC</button>
-    </div>
-  </ytd-watch-flexy>
-  <script>
-    const params = new URLSearchParams(location.search)
-    const singleTrack = params.get('singleTrack') === '1'
-    function responseFor(videoId) {
-      const captionTracks = [
-        { baseUrl: 'https://www.youtube.com/api/timedtext?v=' + videoId + '&lang=en', languageCode: 'en', name: { simpleText: 'English' } }
-      ]
-      if (!singleTrack) {
-        captionTracks.push(
-          { baseUrl: 'https://www.youtube.com/api/timedtext?v=' + videoId + '&lang=zh-Hant', languageCode: 'zh-Hant', name: { simpleText: 'Chinese (Traditional)' } }
-        )
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Fake YouTube</title>
+    <style>
+      #movie_player {
+        position: relative;
+        width: 800px;
+        height: 450px;
+        background: #111;
+        margin: 20px;
       }
-      return {
-        videoDetails: { videoId },
-        captions: { playerCaptionsTracklistRenderer: { captionTracks } }
+    </style>
+  </head>
+  <body>
+    <ytd-watch-flexy>
+      <div id="movie_player" class="html5-video-player">
+        <video class="html5-main-video" src=""></video>
+        <button class="ytp-subtitles-button" aria-pressed="true">CC</button>
+      </div>
+    </ytd-watch-flexy>
+    <script>
+      const params = new URLSearchParams(location.search);
+      const singleTrack = params.get("singleTrack") === "1";
+      function responseFor(videoId) {
+        const captionTracks = [
+          {
+            baseUrl:
+              "https://www.youtube.com/api/timedtext?v=" + videoId + "&lang=en",
+            languageCode: "en",
+            name: { simpleText: "English" },
+          },
+        ];
+        if (!singleTrack) {
+          captionTracks.push({
+            baseUrl:
+              "https://www.youtube.com/api/timedtext?v=" +
+              videoId +
+              "&lang=zh-Hant",
+            languageCode: "zh-Hant",
+            name: { simpleText: "Chinese (Traditional)" },
+          });
+        }
+        return {
+          videoDetails: { videoId },
+          captions: { playerCaptionsTracklistRenderer: { captionTracks } },
+        };
       }
-    }
-    const videoIdFromUrl = () => new URLSearchParams(location.search).get('v') || 'fixture'
-    let playerResponse = responseFor(videoIdFromUrl())
-    window.ytInitialPlayerResponse = playerResponse
-    // The live player API — the bridge prefers this over ytInitialPlayerResponse because
-    // YouTube doesn't update the latter on SPA navigation. Returns the CURRENT video.
-    const mp = document.getElementById('movie_player')
-    const cc = document.querySelector('.ytp-subtitles-button')
-    let selectedTrack = playerResponse.captions.playerCaptionsTracklistRenderer.captionTracks[0]
-    let ccOn = true
-    mp.getPlayerResponse = () => playerResponse
-    mp.loadModule = () => {}
-    mp.getOption = (_module, option) => option === 'tracklist' ? playerResponse.captions.playerCaptionsTracklistRenderer.captionTracks : undefined
-    mp.setOption = (_module, option, value) => {
-      if (option !== 'track') return
-      const next = value && typeof value === 'object' ? value : null
-      if (!next) { selectedTrack = null; return }
-      const same = selectedTrack && selectedTrack.languageCode === next.languageCode && selectedTrack.kind === next.kind
-      selectedTrack = next
-      if (!same && ccOn) fetchTrack(playerResponse.videoDetails.videoId, next.languageCode)
-    }
-    cc.addEventListener('click', () => {
-      ccOn = !ccOn
-      cc.setAttribute('aria-pressed', ccOn ? 'true' : 'false')
-      if (ccOn && selectedTrack) fetchTrack(playerResponse.videoDetails.videoId, selectedTrack.languageCode)
-    })
+      const videoIdFromUrl = () =>
+        new URLSearchParams(location.search).get("v") || "fixture";
+      let playerResponse = responseFor(videoIdFromUrl());
+      window.ytInitialPlayerResponse = playerResponse;
+      // The live player API — the bridge prefers this over ytInitialPlayerResponse because
+      // YouTube doesn't update the latter on SPA navigation. Returns the CURRENT video.
+      const mp = document.getElementById("movie_player");
+      const cc = document.querySelector(".ytp-subtitles-button");
+      let selectedTrack =
+        playerResponse.captions.playerCaptionsTracklistRenderer
+          .captionTracks[0];
+      let ccOn = true;
+      mp.getPlayerResponse = () => playerResponse;
+      mp.loadModule = () => {};
+      mp.getOption = (_module, option) =>
+        option === "tracklist"
+          ? playerResponse.captions.playerCaptionsTracklistRenderer
+              .captionTracks
+          : undefined;
+      mp.setOption = (_module, option, value) => {
+        if (option !== "track") return;
+        const next = value && typeof value === "object" ? value : null;
+        if (!next) {
+          selectedTrack = null;
+          return;
+        }
+        const same =
+          selectedTrack &&
+          selectedTrack.languageCode === next.languageCode &&
+          selectedTrack.kind === next.kind;
+        selectedTrack = next;
+        if (!same && ccOn)
+          fetchTrack(playerResponse.videoDetails.videoId, next.languageCode);
+      };
+      cc.addEventListener("click", () => {
+        ccOn = !ccOn;
+        cc.setAttribute("aria-pressed", ccOn ? "true" : "false");
+        if (ccOn && selectedTrack)
+          fetchTrack(
+            playerResponse.videoDetails.videoId,
+            selectedTrack.languageCode,
+          );
+      });
 
-    // Set the NATIVE currentTime so the isolated-world content script (which reads the
-    // native media getter) observes the change. Do NOT use Object.defineProperty here:
-    // a JS-level override only exists in this (main) world and never reaches the element
-    // the content script reads, leaving its currentTime stuck at 0.
-    const v = document.querySelector('video')
-    window.__setTime = (t) => { v.currentTime = t }
-    // Simulate the player loading its caption tracks. The MAIN-world bridge intercepts
-    // these timedtext responses and forwards them to the content script — exactly as it
-    // captures the real player's authenticated (pot-bearing) responses on youtube.com.
-    function fetchTrack(videoId, lang) {
-      fetch('https://www.youtube.com/api/timedtext?v=' + videoId + '&lang=' + lang + '&fmt=json3').catch(() => {})
-    }
-    function fetchTracks(videoId) {
-      for (const t of playerResponse.captions.playerCaptionsTracklistRenderer.captionTracks) fetchTrack(videoId, t.languageCode)
-    }
-    fetchTracks(playerResponse.videoDetails.videoId)
-    // Simulate YouTube's SPA navigation to a new video: swap the player response, update
-    // the URL, reset playback, fire the router event, and load the new tracks — no reload.
-    window.__navigate = (videoId) => {
-      playerResponse = responseFor(videoId)
-      window.ytInitialPlayerResponse = playerResponse
-      selectedTrack = playerResponse.captions.playerCaptionsTracklistRenderer.captionTracks[0]
-      history.pushState({}, '', '/watch?v=' + videoId)
-      v.currentTime = 0
-      document.dispatchEvent(new CustomEvent('yt-navigate-finish'))
-      fetchTracks(videoId)
-    }
-  </script>
-  <button id="go-fs">fullscreen</button>
-  <script>
-    document.getElementById('go-fs').addEventListener('click', () => {
-      document.getElementById('movie_player').requestFullscreen().catch(() => {})
-    })
-  </script>
-</body></html>
+      // Set the NATIVE currentTime so the isolated-world content script (which reads the
+      // native media getter) observes the change. Do NOT use Object.defineProperty here:
+      // a JS-level override only exists in this (main) world and never reaches the element
+      // the content script reads, leaving its currentTime stuck at 0.
+      const v = document.querySelector("video");
+      window.__setTime = (t) => {
+        v.currentTime = t;
+      };
+      // Simulate the player loading its caption tracks. The MAIN-world bridge intercepts
+      // these timedtext responses and forwards them to the content script — exactly as it
+      // captures the real player's authenticated (pot-bearing) responses on youtube.com.
+      function fetchTrack(videoId, lang) {
+        fetch(
+          "https://www.youtube.com/api/timedtext?v=" +
+            videoId +
+            "&lang=" +
+            lang +
+            "&fmt=json3",
+        ).catch(() => {});
+      }
+      function fetchTracks(videoId) {
+        for (const t of playerResponse.captions.playerCaptionsTracklistRenderer
+          .captionTracks)
+          fetchTrack(videoId, t.languageCode);
+      }
+      fetchTracks(playerResponse.videoDetails.videoId);
+      // Simulate YouTube's SPA navigation to a new video: swap the player response, update
+      // the URL, reset playback, fire the router event, and load the new tracks — no reload.
+      window.__navigate = (videoId) => {
+        playerResponse = responseFor(videoId);
+        window.ytInitialPlayerResponse = playerResponse;
+        selectedTrack =
+          playerResponse.captions.playerCaptionsTracklistRenderer
+            .captionTracks[0];
+        history.pushState({}, "", "/watch?v=" + videoId);
+        v.currentTime = 0;
+        document.dispatchEvent(new CustomEvent("yt-navigate-finish"));
+        fetchTracks(videoId);
+      };
+    </script>
+    <button id="go-fs">fullscreen</button>
+    <script>
+      document.getElementById("go-fs").addEventListener("click", () => {
+        document
+          .getElementById("movie_player")
+          .requestFullscreen()
+          .catch(() => {});
+      });
+    </script>
+  </body>
+</html>

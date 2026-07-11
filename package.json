@@ -14,9 +14,12 @@
     "test:live": "node scripts/fs-remount-chromium.mjs",
     "test:live:nav": "node scripts/validate-nav.mjs",
     "test:live:ccon-nav": "node scripts/validate-ccon-nav.mjs",
-    "verify": "npm run typecheck && npm run lint && npm run test:unit",
-    "verify:full": "npm run verify && npm run test:golden && npm run test:mutation && npm run build && npm run test:smoke",
-    "record": "node scripts/record.mjs"
+    "verify": "pnpm format:check && pnpm typecheck && pnpm lint && pnpm test:unit",
+    "verify:full": "pnpm verify && pnpm test:golden && pnpm test:mutation && pnpm build && pnpm test:smoke",
+    "record": "node scripts/record.mjs",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint:fix": "eslint . --fix"
   },
   "devDependencies": {
     "@playwright/test": "^1.58.2",
@@ -27,6 +30,7 @@
     "esbuild": "^0.24.0",
     "eslint": "^9.17.0",
     "fast-check": "^3.23.1",
+    "prettier": "^3.9.5",
     "typescript": "^5.7.2",
     "typescript-eslint": "^8.18.0",
     "vitest": "^2.1.8"
