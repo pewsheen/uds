@@ -28,6 +28,7 @@ export type LoadRequest = { languageCode?: string; asr?: boolean };
 export type BridgeMessage = {
   __dualSubsReady?: boolean;
   __dualSubsLoad?: LoadRequest;
+  __dualSubsShowNative?: LoadRequest;
 };
 
 export type ProviderHooks = {
@@ -43,6 +44,7 @@ export type SiteProvider = {
   start: () => void;
   onReady?: () => void;
   load: (request: LoadRequest) => void | Promise<void>;
+  showNativeCaptions?: (request: LoadRequest) => void | Promise<void>;
   shouldReadFetchResponse: (url: string, response: Response) => boolean;
   shouldReadXhrResponse: (url: string) => boolean;
   processResponse: (url: string, body: string) => void;

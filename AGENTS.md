@@ -40,6 +40,8 @@ Follow it after deterministic tests pass.
 
 - Use real Chrome when the task names Chrome or requires the user's existing signed-in
   session.
+- For Prime native-caption changes, verify both states: unchecked hides the provider
+  overlay, while checked enables a native track and leaves the overlay visible.
 - Use the available browser-control skill and read its current instructions before
   interacting with Chrome.
 - Do not replace a requested signed-in Chrome check with Playwright, web search, or a

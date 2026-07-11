@@ -499,3 +499,85 @@ test("Prime Video detail page discovers subtitle tracks and renders fetched capt
 
   expect(errors, errors.join("\n")).toHaveLength(0);
 });
+
+test("Prime Video native-caption preference hides the native layer or enables the first configured language", async () => {
+  const page = await context.newPage();
+  await page.route(
+    /https:\/\/(?:www|fe)\.primevideo\.com\/(?:region\/[^/]+\/)?detail\/.*/,
+    async (route) => {
+      const html = await readFile(primeHtmlPath, "utf8");
+      await route.fulfill({
+        status: 200,
+        contentType: "text/html",
+        body: html,
+      });
+    },
+  );
+  await page.route(
+    "https://fe.primevideo.com/playback/GetPlaybackResources**",
+    async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          titleId: "prime-native-fixture",
+          subtitleUrls: [
+            {
+              timedTextTrackId: "en-track",
+              url: "https://fe.primevideo.com/subtitles/native/en-US.vtt",
+            },
+          ],
+          subtitleMetadata: {
+            timedTextTracks: [
+              {
+                timedTextTrackId: "en-track",
+                languageCode: "en-US",
+                displayName: "English",
+              },
+            ],
+          },
+        }),
+      });
+    },
+  );
+  await page.route(
+    "https://fe.primevideo.com/subtitles/native/en-US.vtt",
+    async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "text/vtt",
+        body: "WEBVTT\n\n00:00:00.000 --> 00:00:09.000\nPrime English caption",
+      });
+    },
+  );
+
+  await page.goto(
+    "https://fe.primevideo.com/region/fe/detail/0SS3O1MC4E0TW4GF0V1E4KD06T",
+  );
+  await expect(page.locator("#dual-subs-layer")).toBeAttached({
+    timeout: 10000,
+  });
+
+  const id = await extensionIdFromContentScript(page);
+  const popup = await context.newPage();
+  await popup.goto(`chrome-extension://${id}/popup/popup.html`);
+  await expect(popup.locator("#native")).toBeAttached();
+  const nativeToggle = popup.locator("label.check:has(#native)");
+  if (await popup.locator("#native").isChecked()) {
+    await nativeToggle.click();
+  }
+
+  const nativeOverlay = page.locator(".atvwebplayersdk-captions-overlay");
+  await expect(nativeOverlay).toHaveCSS("display", "none");
+
+  await nativeToggle.click();
+  await expect(page.locator("#en-us_Subtitle_Dialog_1")).toBeChecked({
+    timeout: 5000,
+  });
+  await expect(nativeOverlay).toBeVisible();
+  await expect(nativeOverlay).toContainText("Native en-us");
+
+  await popup.evaluate(() => chrome.storage.sync.clear());
+  await popup.close();
+  await page.close();
+});

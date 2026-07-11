@@ -37,6 +37,8 @@ repository style.
   requested title and caption tracks are active before asserting.
 - Prime detail pages can contain a visible preview separate from the loaded playback
   timeline. Assert against the active, loaded player.
+- Prime's native-caption preference is provider-controlled: hide its captions overlay
+  when disabled, and select the first configured extension language when enabled.
 - Playwright fixture tests and routed timed-text responses validate plumbing, not a
   signed-in production session.
 - Chrome may require the unpacked extension to be reloaded after every build.

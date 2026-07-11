@@ -280,11 +280,28 @@ async function main() {
   // Hide the provider's own caption text so it doesn't overlap our boxes -- only while enabled.
   const hideNative = document.createElement("style");
   hideNative.textContent =
-    '.ytp-caption-window-container, .caption-window, [class*="textTrack" i] { display: none !important; }';
+    '.ytp-caption-window-container, .caption-window, [class*="textTrack" i], .atvwebplayersdk-captions-overlay { display: none !important; }';
   function setNativeHidden(hidden: boolean) {
     if (hidden && !hideNative.isConnected)
       document.documentElement.appendChild(hideNative);
     else if (!hidden && hideNative.isConnected) hideNative.remove();
+  }
+  function applyNativeCaptionPreference() {
+    const showNative = settings.enabled && settings.nativeSubtitles === true;
+    setNativeHidden(settings.enabled && !showNative);
+    if (!showNative || !location.hostname.endsWith("primevideo.com")) return;
+    const configuredBox = settings.boxes.find((box) => box.lang);
+    const nativeTrack = configuredBox
+      ? pickTrack(tracks, configuredBox.lang)
+      : null;
+    window.postMessage(
+      {
+        __dualSubsShowNative: {
+          languageCode: nativeTrack?.languageCode ?? configuredBox?.lang,
+        },
+      },
+      "*",
+    );
   }
 
   function render() {
@@ -454,9 +471,9 @@ async function main() {
     if (!settings.enabled) {
       loadGen++; // cancel in-flight loading
       for (const box of settings.boxes) cuesByBox[box.id] = [];
-      setNativeHidden(false);
+      applyNativeCaptionPreference();
     } else {
-      setNativeHidden(!settings.nativeSubtitles); // keep native provider captions if the user opted in
+      applyNativeCaptionPreference();
       // A language change just cleared that box's cues. The player may already have the
       // track loaded, so startLoading's setOption won't trigger a fresh fetch — but the
       // bridge still has the capture buffered, so ask it to replay; captureMatchesBox
@@ -496,7 +513,7 @@ async function main() {
     // captured before we were ready to match them (initial load + post-navigation).
     window.postMessage({ __dualSubsReady: true }, "*");
     if (settings.enabled) {
-      setNativeHidden(!settings.nativeSubtitles);
+      applyNativeCaptionPreference();
       void startLoading();
     }
   }

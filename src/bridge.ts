@@ -134,6 +134,10 @@ window.addEventListener("message", (event: MessageEvent) => {
     replayBuffered();
     return;
   }
+  if (data.__dualSubsShowNative) {
+    void provider?.showNativeCaptions?.(data.__dualSubsShowNative);
+    return;
+  }
   const request = data.__dualSubsLoad;
   if (!request?.languageCode) return;
   void provider?.load(request);

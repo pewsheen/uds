@@ -30,7 +30,8 @@ export type BoxConfig = {
 export type Settings = {
   enabled: boolean;
   boxes: [BoxConfig, BoxConfig];
-  // When true, keep YouTube's own caption layer visible instead of hiding it.
+  // When true, keep the provider's own caption layer visible. Prime Video also
+  // enables a native track matching the first configured extension language.
   nativeSubtitles?: boolean;
 };
 

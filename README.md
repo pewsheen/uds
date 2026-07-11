@@ -13,7 +13,7 @@ outline, and per-display-mode position.
 - Independent dragging with page/video anchoring and overlap avoidance.
 - Position memory for default, theater, fullscreen, and miniplayer modes.
 - Live popup settings without a page reload.
-- Optional native YouTube captions alongside the extension overlays.
+- Optional native YouTube or Prime Video captions alongside the extension overlays.
 - SPA navigation detection so tracks refresh when the site swaps videos.
 
 ## Requirements
@@ -120,7 +120,9 @@ replacement.
 
 Prime Video exposes several response shapes and may show a muted preview video on a
 detail page. The provider merges partial track records and the player adapter waits
-for the visible, loaded playback timeline.
+for the visible, loaded playback timeline. When native captions are requested and
+Prime's player is set to Off, the provider enables the native track matching the
+first configured extension language (falling back to the first available track).
 
 ## Project guidance
 

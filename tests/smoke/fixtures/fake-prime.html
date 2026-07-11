@@ -24,6 +24,18 @@
         display: block;
         background: #050505;
       }
+      .atvwebplayersdk-captions-overlay {
+        position: absolute;
+        bottom: 48px;
+        left: 50%;
+        transform: translateX(-50%);
+      }
+      #native-caption:empty {
+        display: none;
+      }
+      #subtitle-menu[hidden] {
+        display: none;
+      }
     </style>
   </head>
   <body>
@@ -34,6 +46,33 @@
           data-dual-subs-duration="1470.976"
           data-dual-subs-ready-state="4"
         ></video>
+        <div class="atvwebplayersdk-captions-overlay">
+          <span id="native-caption"></span>
+        </div>
+        <button
+          type="button"
+          class="atvwebplayersdk-subtitleaudiomenu-button"
+          aria-label="Subtitles and Audio Menu"
+        >
+          Subtitles
+        </button>
+        <div id="subtitle-menu" hidden>
+          <label>
+            <input type="radio" name="subtitle" id="off" checked /> Off
+          </label>
+          <label>
+            <input type="radio" name="subtitle" id="en-us_Subtitle_Dialog_1" />
+            English
+          </label>
+          <label>
+            <input
+              type="radio"
+              name="subtitle"
+              id="zh-hant_Subtitle_Dialog_2"
+            />
+            Chinese Traditional
+          </label>
+        </div>
       </div>
     </main>
     <script>
@@ -43,6 +82,19 @@
       window.__setTime = (t) => {
         v.currentTime = t;
       };
+      const subtitleMenu = document.querySelector("#subtitle-menu");
+      document
+        .querySelector(".atvwebplayersdk-subtitleaudiomenu-button")
+        .addEventListener("click", () => {
+          subtitleMenu.hidden = !subtitleMenu.hidden;
+        });
+      document.querySelectorAll('input[name="subtitle"]').forEach((input) => {
+        input.addEventListener("change", () => {
+          document.querySelector("#native-caption").textContent =
+            input.id === "off" ? "" : `Native ${input.id.split("_")[0]}`;
+          subtitleMenu.hidden = true;
+        });
+      });
       fetch(
         "/playback/GetPlaybackResources?titleId=" +
           encodeURIComponent(titleId) +
