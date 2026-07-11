@@ -7,6 +7,7 @@ import {
 import type {
   CaptionTrackRaw,
   LoadRequest,
+  NativeCaptionRequest,
   ProviderHooks,
   SiteProviderFactory,
 } from "./types";
@@ -15,6 +16,7 @@ const RESPONSE_HINT =
   /(?:getplaybackresources|playback|subtitle|caption|timedtext|ttml|webvtt|dfxp|\.vtt|\.ttml|\.ttml2)/i;
 const SUBTITLE_MENU_BUTTON = ".atvwebplayersdk-subtitleaudiomenu-button";
 const SUBTITLE_RADIOS = 'input[type="radio"][name="subtitle"]';
+const NATIVE_CAPTION_SELECTOR = ".atvwebplayersdk-captions-overlay";
 
 export const primeVideoProvider: SiteProviderFactory = {
   matches: (hostname) => hostname.endsWith("primevideo.com"),
@@ -26,6 +28,8 @@ function createPrimeVideoProvider(hooks: ProviderHooks) {
   let tracksKey = "";
   let videoId = parseWatchId(location.href);
   let nativeRequestGeneration = 0;
+  const hideNative = document.createElement("style");
+  hideNative.textContent = `${NATIVE_CAPTION_SELECTOR} { display: none !important; }`;
 
   function publishSnapshot(): boolean {
     const id = parseWatchId(location.href);
@@ -161,6 +165,15 @@ function createPrimeVideoProvider(hooks: ProviderHooks) {
     }
   }
 
+  async function setNativeCaptions(
+    request: NativeCaptionRequest,
+  ): Promise<void> {
+    if (request.hidden && !hideNative.isConnected)
+      document.documentElement.appendChild(hideNative);
+    else if (!request.hidden && hideNative.isConnected) hideNative.remove();
+    if (request.enable) await showNativeCaptions(request);
+  }
+
   function processResponse(url: string, body: string): void {
     const track = findTrack(url);
     if (track || isPrimeCaptionUrl(url) || looksLikePrimeCaptionBody(body)) {
@@ -186,7 +199,7 @@ function createPrimeVideoProvider(hooks: ProviderHooks) {
     },
     onReady: publishSnapshot,
     load,
-    showNativeCaptions,
+    setNativeCaptions,
     shouldReadFetchResponse: (url: string, response: Response) => {
       const contentType =
         response.headers.get("content-type")?.toLowerCase() ?? "";

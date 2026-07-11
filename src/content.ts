@@ -277,26 +277,17 @@ async function main() {
   // current video's `tracks` are known — replaying earlier would match captured cues
   // against an empty track list and silently drop them.
 
-  // Hide the provider's own caption text so it doesn't overlap our boxes -- only while enabled.
-  const hideNative = document.createElement("style");
-  hideNative.textContent =
-    '.ytp-caption-window-container, .caption-window, [class*="textTrack" i], .atvwebplayersdk-captions-overlay { display: none !important; }';
-  function setNativeHidden(hidden: boolean) {
-    if (hidden && !hideNative.isConnected)
-      document.documentElement.appendChild(hideNative);
-    else if (!hidden && hideNative.isConnected) hideNative.remove();
-  }
   function applyNativeCaptionPreference() {
     const showNative = settings.enabled && settings.nativeSubtitles === true;
-    setNativeHidden(settings.enabled && !showNative);
-    if (!showNative || !location.hostname.endsWith("primevideo.com")) return;
     const configuredBox = settings.boxes.find((box) => box.lang);
     const nativeTrack = configuredBox
       ? pickTrack(tracks, configuredBox.lang)
       : null;
     window.postMessage(
       {
-        __dualSubsShowNative: {
+        __dualSubsNative: {
+          hidden: settings.enabled && !showNative,
+          enable: showNative,
           languageCode: nativeTrack?.languageCode ?? configuredBox?.lang,
         },
       },

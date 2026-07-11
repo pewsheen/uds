@@ -1,12 +1,15 @@
 import { parseWatchId } from "../core/navigation";
 import type {
   LoadRequest,
+  NativeCaptionRequest,
   PlayerResponse,
   ProviderHooks,
   SiteProviderFactory,
 } from "./types";
 
 const TIMEDTEXT = "/api/timedtext";
+const NATIVE_CAPTION_SELECTORS =
+  '.ytp-caption-window-container, .caption-window, [class*="textTrack" i]';
 
 type YtPlayer = {
   loadModule?: (module: string) => void;
@@ -21,6 +24,18 @@ export const youtubeProvider: SiteProviderFactory = {
 };
 
 function createYouTubeProvider(hooks: ProviderHooks) {
+  const hideNative = document.createElement("style");
+  hideNative.textContent = `${NATIVE_CAPTION_SELECTORS} { display: none !important; }`;
+
+  function setNativeCaptions(request: NativeCaptionRequest): void {
+    if (request.hidden && !hideNative.isConnected)
+      document.documentElement.appendChild(hideNative);
+    else if (!request.hidden && hideNative.isConnected) hideNative.remove();
+    if (!request.enable) return;
+    const button = document.querySelector<HTMLElement>(".ytp-subtitles-button");
+    if (button?.getAttribute("aria-pressed") === "false") button.click();
+  }
+
   function currentPlayerResponse(): PlayerResponse {
     const player = document.getElementById("movie_player") as unknown as {
       getPlayerResponse?: () => unknown;
@@ -112,6 +127,7 @@ function createYouTubeProvider(hooks: ProviderHooks) {
       });
     },
     load,
+    setNativeCaptions,
     shouldReadFetchResponse: (url: string) => url.includes(TIMEDTEXT),
     shouldReadXhrResponse: (url: string) => url.includes(TIMEDTEXT),
     processResponse: (url: string, body: string) => {

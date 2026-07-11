@@ -25,10 +25,14 @@ export type CaptionMsg = {
   body: string;
 } & CaptionMeta;
 export type LoadRequest = { languageCode?: string; asr?: boolean };
+export type NativeCaptionRequest = LoadRequest & {
+  hidden: boolean;
+  enable: boolean;
+};
 export type BridgeMessage = {
   __dualSubsReady?: boolean;
   __dualSubsLoad?: LoadRequest;
-  __dualSubsShowNative?: LoadRequest;
+  __dualSubsNative?: NativeCaptionRequest;
 };
 
 export type ProviderHooks = {
@@ -44,7 +48,7 @@ export type SiteProvider = {
   start: () => void;
   onReady?: () => void;
   load: (request: LoadRequest) => void | Promise<void>;
-  showNativeCaptions?: (request: LoadRequest) => void | Promise<void>;
+  setNativeCaptions?: (request: NativeCaptionRequest) => void | Promise<void>;
   shouldReadFetchResponse: (url: string, response: Response) => boolean;
   shouldReadXhrResponse: (url: string) => boolean;
   processResponse: (url: string, body: string) => void;

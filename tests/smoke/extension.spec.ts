@@ -239,6 +239,36 @@ test("SPA navigation to a new video swaps captions without a page reload", async
   expect(errors, errors.join("\n")).toHaveLength(0);
 });
 
+test("YouTube native-caption preference is applied by the provider", async () => {
+  const page = await context.newPage();
+  await routeFixtures(page);
+  await page.goto("https://www.youtube.com/watch?v=native-fixture");
+  await expect(page.locator("#dual-subs-layer")).toBeAttached({
+    timeout: 10000,
+  });
+
+  const id = await extensionIdFromContentScript(page);
+  const popup = await context.newPage();
+  await popup.goto(`chrome-extension://${id}/popup/popup.html`);
+  const nativeInput = popup.locator("#native");
+  const nativeToggle = popup.locator("label.check:has(#native)");
+  await expect(nativeInput).toBeAttached();
+  if (await nativeInput.isChecked()) await nativeToggle.click();
+
+  const nativeCaption = page.locator(".ytp-caption-window-container");
+  await expect(nativeCaption).toHaveCSS("display", "none");
+  await nativeToggle.click();
+  await expect(nativeCaption).toBeVisible();
+  await expect(page.locator(".ytp-subtitles-button")).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+
+  await popup.evaluate(() => chrome.storage.sync.clear());
+  await popup.close();
+  await page.close();
+});
+
 test("re-parents the subtitle layer into the fullscreen element on fullscreen", async () => {
   const page = await context.newPage();
   const errors: string[] = [];
