@@ -11,6 +11,7 @@ import type {
   ProviderHooks,
   SiteProviderFactory,
 } from "./types";
+import { readResponseTextLimited } from "../adapters/response-text";
 
 const RESPONSE_HINT =
   /(?:getplaybackresources|playback|subtitle|caption|timedtext|ttml|webvtt|dfxp|\.vtt|\.ttml|\.ttml2)/i;
@@ -113,7 +114,7 @@ function createPrimeVideoProvider(hooks: ProviderHooks) {
     try {
       const response = await fetch(track.baseUrl, { credentials: "include" });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      const body = await response.text();
+      const body = await readResponseTextLimited(response);
       hooks.forwardCaption(track.baseUrl, body, meta);
     } catch (error) {
       hooks.debug("prime fetch failed", track.languageCode, String(error));

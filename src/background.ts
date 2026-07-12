@@ -1,4 +1,5 @@
 import { canProxyCaptionRequest } from "./adapters/caption-proxy";
+import { readResponseTextLimited } from "./adapters/response-text";
 
 type FetchCaptionMessage = { type?: string; url?: string };
 type FetchCaptionResponse =
@@ -27,7 +28,6 @@ chrome.runtime.onMessage.addListener(
           return;
         }
         const response = await fetch(url.href, { credentials: "include" });
-        const body = await response.text();
         if (!response.ok) {
           sendResponse({
             ok: false,
@@ -36,6 +36,7 @@ chrome.runtime.onMessage.addListener(
           });
           return;
         }
+        const body = await readResponseTextLimited(response);
         sendResponse({
           ok: true,
           status: response.status,

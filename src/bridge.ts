@@ -10,6 +10,11 @@ import type {
   SiteProviderFactory,
 } from "./providers/types";
 import { youtubeProvider } from "./providers/youtube";
+import {
+  isTextWithinByteLimit,
+  MAX_CAPTURE_BYTES,
+  readResponseTextLimited,
+} from "./adapters/response-text";
 
 const ATTR = "data-uds-pr";
 const dlog = (...args: unknown[]) => {
@@ -91,9 +96,7 @@ window.fetch = function (
   void promise
     .then((response) => {
       if (!provider?.shouldReadFetchResponse(url, response)) return;
-      void response
-        .clone()
-        .text()
+      void readResponseTextLimited(response.clone())
         .then((body) => provider.processResponse(url, body))
         .catch(() => {});
     })
@@ -112,7 +115,10 @@ XMLHttpRequest.prototype.open = function (
   if (provider?.shouldReadXhrResponse(href)) {
     this.addEventListener("load", () => {
       try {
-        if (typeof this.responseText === "string")
+        if (
+          typeof this.responseText === "string" &&
+          isTextWithinByteLimit(this.responseText, MAX_CAPTURE_BYTES)
+        )
           provider.processResponse(href, this.responseText);
       } catch {
         // Non-text response.
