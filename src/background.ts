@@ -1,3 +1,5 @@
+import { canProxyCaptionRequest } from "./adapters/caption-proxy";
+
 type FetchCaptionMessage = { type?: string; url?: string };
 type FetchCaptionResponse =
   | { ok: true; status: number; body: string; contentType: string }
@@ -8,14 +10,19 @@ const ALLOWED_HOSTS = new Set(["cf-timedtext.aux.pv-cdn.net"]);
 chrome.runtime.onMessage.addListener(
   (
     message: FetchCaptionMessage,
-    _sender,
+    sender,
     sendResponse: (response: FetchCaptionResponse) => void,
   ) => {
     if (message?.type !== "uds:fetchCaption") return false;
     void (async () => {
       try {
         const url = new URL(message.url ?? "");
-        if (url.protocol !== "https:" || !ALLOWED_HOSTS.has(url.hostname)) {
+        const senderUrl = sender.tab?.url ?? sender.url;
+        if (
+          sender.id !== chrome.runtime.id ||
+          !canProxyCaptionRequest(senderUrl, url.href) ||
+          !ALLOWED_HOSTS.has(url.hostname)
+        ) {
           sendResponse({ ok: false, error: "Blocked subtitle host" });
           return;
         }

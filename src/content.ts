@@ -22,6 +22,10 @@ import { parseWatchId, videoChanged } from "./core/navigation";
 import { createStorageAdapter } from "./adapters/storage";
 import { createPlayerAdapter } from "./adapters/player";
 import { createRenderer, type BoxView } from "./adapters/renderer";
+import {
+  canProxyCaptionRequest,
+  matchesKnownCaptionUrl,
+} from "./adapters/caption-proxy";
 
 type CaptionTrackRaw = {
   baseUrl: string;
@@ -239,6 +243,14 @@ async function main() {
       asr?: boolean;
     } | null;
     if (!d?.__dualSubsFetchViaExtension || !d.url) return;
+    if (
+      !canProxyCaptionRequest(location.href, d.url) ||
+      !matchesKnownCaptionUrl(
+        d.url,
+        tracks.map((track) => track.baseUrl),
+      )
+    )
+      return;
     void (async () => {
       try {
         const res = (await chrome.runtime.sendMessage({
