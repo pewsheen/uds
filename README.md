@@ -1,8 +1,8 @@
-# Dual Subtitles
+# UDS
 
 Two independent, draggable, styleable subtitle tracks for YouTube and Prime Video.
 
-Dual Subtitles is a Manifest V3 Chrome extension that renders two caption tracks at
+UDS is a Manifest V3 Chrome extension that renders two caption tracks at
 the same time. Each box has its own language, position, font, color, background,
 outline, and per-display-mode position.
 
@@ -10,7 +10,8 @@ outline, and per-display-mode position.
 
 - Two simultaneous subtitle tracks from the current video's available languages.
 - YouTube and Prime Video provider support.
-- Independent dragging with page/video anchoring and overlap avoidance.
+- Independent dragging, with player/page anchoring on YouTube, player anchoring on
+  Prime Video, and overlap avoidance.
 - Position memory for default, theater, fullscreen, and miniplayer modes.
 - Live popup settings without a page reload.
 - Optional native YouTube or Prime Video captions alongside the extension overlays.
@@ -47,27 +48,69 @@ Then:
 
 After rebuilding, select **Reload** on the extension card before retesting.
 
+## Publish to the Chrome Web Store
+
+Release copy, privacy disclosures, asset inventory, and the submission checklist are
+collected in [`publish/README.md`](publish/README.md). The detailed store copy is in
+[`publish/docs/store-listing.md`](publish/docs/store-listing.md), and the public-facing
+privacy policy template is in
+[`publish/docs/privacy-policy.md`](publish/docs/privacy-policy.md).
+
+To produce a verified upload ZIP, open the repository's **Actions** tab, select
+**prepare store archive**, choose **Run workflow**, and download the resulting
+`uds-<version>` artifact. Optionally select **Create a GitHub draft release
+and attach the verified ZIP** before running it. The workflow is manual-only and does
+not publish to the Chrome Web Store or require store credentials.
+
+For a local package, run `pnpm run pack`. This performs a clean build, validates the
+extension file allow-list, and writes `dist/uds-<version>.zip` plus its
+`dist/uds-<version>.zip.sha256` checksum.
+
 ## Development
 
 Use pnpm consistently; `pnpm-lock.yaml` is the canonical lockfile.
 
-| Command              | Purpose                                                               |
-| -------------------- | --------------------------------------------------------------------- |
-| `pnpm format`        | Format supported project files with Prettier.                         |
-| `pnpm format:check`  | Check formatting without changing files.                              |
-| `pnpm lint`          | Run ESLint, including core purity checks.                             |
-| `pnpm lint:fix`      | Apply safe ESLint fixes.                                              |
-| `pnpm typecheck`     | Run strict TypeScript checking.                                       |
-| `pnpm test:unit`     | Run core, property, and adapter contract tests.                       |
-| `pnpm test:golden`   | Verify approved parser snapshots.                                     |
-| `pnpm test:mutation` | Run Stryker; the build fails below an 85% score.                      |
-| `pnpm build`         | Bundle the extension into `dist/`.                                    |
-| `pnpm test:smoke`    | Run Playwright against deterministic fixture sites.                   |
-| `pnpm verify`        | Format check, typecheck, lint, and unit tests.                        |
-| `pnpm verify:full`   | Run every deterministic CI check, including mutation and smoke tests. |
+| Command                   | Purpose                                                               |
+| ------------------------- | --------------------------------------------------------------------- |
+| `pnpm format`             | Format supported project files with Prettier.                         |
+| `pnpm format:check`       | Check formatting without changing files.                              |
+| `pnpm lint`               | Run ESLint, including core purity checks.                             |
+| `pnpm lint:fix`           | Apply safe ESLint fixes.                                              |
+| `pnpm typecheck`          | Run strict TypeScript checking.                                       |
+| `pnpm test:unit`          | Run core, property, and adapter contract tests.                       |
+| `pnpm test:golden`        | Verify approved parser snapshots.                                     |
+| `pnpm test:mutation`      | Run Stryker; the build fails below an 85% score.                      |
+| `pnpm build`              | Bundle the extension into `dist/`.                                    |
+| `pnpm test:smoke`         | Run Playwright against deterministic fixture sites.                   |
+| `pnpm run pack`           | Build the validated ZIP and its SHA-256 checksum under `dist/`.       |
+| `pnpm test:live`          | Check fullscreen overlay remounting on a live YouTube player.         |
+| `pnpm test:live:nav`      | Check caption refresh after live YouTube SPA navigation.              |
+| `pnpm test:live:ccon-nav` | Stress repeated live navigation with native captions enabled.         |
+| `pnpm verify`             | Format check, typecheck, lint, and unit tests.                        |
+| `pnpm verify:full`        | Run every deterministic CI check, including mutation and smoke tests. |
 
 For a fast inner loop, run the focused test first and then `pnpm verify`. Before
 hand-off, run `pnpm verify:full`.
+
+### Utility and live-test scripts
+
+`scripts/` contains release/build utilities. Browser-validation drivers live under
+`tests/live/`; they launch Playwright Chromium against production YouTube, substitute
+caption responses where noted, and write PNG or log evidence under
+`test-results/live/`.
+
+| File                                 | Purpose                                                                                                     |
+| ------------------------------------ | ----------------------------------------------------------------------------------------------------------- |
+| `scripts/pack-extension.mjs`         | Build or reuse `dist/`, enforce the Web Store file allow-list, and create the JSZip archive plus `.sha256`. |
+| `tests/live/_refresh-ccon.mjs`       | Reproduce the default-on native-caption refresh failure after an empty first caption response.              |
+| `tests/live/evidence.mjs`            | Place generated browser-test evidence under `test-results/live/`.                                           |
+| `tests/live/fs-remount-chromium.mjs` | Verify that the overlay moves into and out of the fullscreen element on a live player.                      |
+| `tests/live/validate-asr.mjs`        | Check YouTube automatic-caption track discovery and `kind=asr` requests.                                    |
+| `tests/live/validate-ccon-nav.mjs`   | Stress repeated YouTube SPA navigation while native captions are enabled.                                   |
+| `tests/live/validate-dual.mjs`       | Verify sequential loading and rendering of two configured languages.                                        |
+| `tests/live/validate-glow.mjs`       | Capture and validate the page-anchor glow during a drag.                                                    |
+| `tests/live/validate-nav.mjs`        | Verify bridge refresh and caption reload after YouTube SPA navigation.                                      |
+| `tests/live/validate-pipeline.mjs`   | Exercise the live capture-to-parse-to-render pipeline with substituted caption data.                        |
 
 ## Real Chrome testing
 

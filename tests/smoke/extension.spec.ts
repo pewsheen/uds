@@ -27,8 +27,7 @@ async function extensionIdFromContentScript(
       const origin =
         contexts.find(
           (c) =>
-            c.name === "YouTube Dual Subtitles" &&
-            c.origin?.startsWith("chrome-extension://"),
+            c.name === "UDS" && c.origin?.startsWith("chrome-extension://"),
         )?.origin ??
         contexts.find((c) => c.origin?.startsWith("chrome-extension://"))
           ?.origin;
@@ -86,11 +85,11 @@ test("injects, renders both boxes, syncs, drags", async () => {
 
   await page.goto("https://www.youtube.com/watch?v=fixture");
 
-  const layer = page.locator("#dual-subs-layer");
+  const layer = page.locator("#uds-layer");
   await expect(layer).toBeAttached({ timeout: 10000 });
   expect(errors, errors.join("\n")).toHaveLength(0);
 
-  const boxes = page.locator(".dual-subs-box");
+  const boxes = page.locator(".uds-box");
   await expect(boxes).toHaveCount(2);
 
   // Sync: at t=1 the first cue is active in both independently loaded boxes.
@@ -171,10 +170,10 @@ test("one failing caption track does not tear down the whole overlay", async () 
   await page.goto("https://www.youtube.com/watch?v=fixture");
 
   // The overlay still mounts: layer + BOTH boxes present despite the 429.
-  await expect(page.locator("#dual-subs-layer")).toBeAttached({
+  await expect(page.locator("#uds-layer")).toBeAttached({
     timeout: 10000,
   });
-  await expect(page.locator(".dual-subs-box")).toHaveCount(2);
+  await expect(page.locator(".uds-box")).toHaveCount(2);
   // The 429 is swallowed per-box, not surfaced as an unhandled rejection.
   expect(errors, errors.join("\n")).toHaveLength(0);
 
@@ -182,7 +181,7 @@ test("one failing caption track does not tear down the whole overlay", async () 
   await page.evaluate(() =>
     (window as unknown as { __setTime: (t: number) => void }).__setTime(1),
   );
-  await expect(page.locator(".dual-subs-box").first()).toContainText(
+  await expect(page.locator(".uds-box").first()).toContainText(
     "Hello from the fixture",
   );
 });
@@ -209,8 +208,8 @@ test("SPA navigation to a new video swaps captions without a page reload", async
 
   await page.goto("https://www.youtube.com/watch?v=fixture");
 
-  const firstBox = page.locator(".dual-subs-box").first();
-  await expect(page.locator("#dual-subs-layer")).toBeAttached({
+  const firstBox = page.locator(".uds-box").first();
+  await expect(page.locator("#uds-layer")).toBeAttached({
     timeout: 10000,
   });
 
@@ -243,7 +242,7 @@ test("YouTube native-caption preference is applied by the provider", async () =>
   const page = await context.newPage();
   await routeFixtures(page);
   await page.goto("https://www.youtube.com/watch?v=native-fixture");
-  await expect(page.locator("#dual-subs-layer")).toBeAttached({
+  await expect(page.locator("#uds-layer")).toBeAttached({
     timeout: 10000,
   });
 
@@ -277,13 +276,13 @@ test("re-parents the subtitle layer into the fullscreen element on fullscreen", 
   await routeFixtures(page);
   await page.goto("https://www.youtube.com/watch?v=fixture");
 
-  await expect(page.locator("#dual-subs-layer")).toBeAttached({
+  await expect(page.locator("#uds-layer")).toBeAttached({
     timeout: 10000,
   });
   expect(errors, errors.join("\n")).toHaveLength(0);
 
   // 1. Initially the layer is a direct child of <body>.
-  await expect(page.locator("body > #dual-subs-layer")).toBeAttached();
+  await expect(page.locator("body > #uds-layer")).toBeAttached();
 
   // 2. Enter real fullscreen via a user gesture, then wait for the browser to report it.
   await page.click("#go-fs");
@@ -292,7 +291,7 @@ test("re-parents the subtitle layer into the fullscreen element on fullscreen", 
   });
 
   // 3. The rAF render loop should re-parent the layer under #movie_player.
-  await expect(page.locator("#movie_player #dual-subs-layer")).toBeAttached({
+  await expect(page.locator("#movie_player #uds-layer")).toBeAttached({
     timeout: 5000,
   });
 
@@ -301,7 +300,7 @@ test("re-parents the subtitle layer into the fullscreen element on fullscreen", 
   await page.waitForFunction(() => !document.fullscreenElement, null, {
     timeout: 5000,
   });
-  await expect(page.locator("body > #dual-subs-layer")).toBeAttached({
+  await expect(page.locator("body > #uds-layer")).toBeAttached({
     timeout: 5000,
   });
 });
@@ -311,8 +310,8 @@ test("re-selecting a box source (off → on) re-fills it without a reload", asyn
   await routeFixtures(page);
   await page.goto("https://www.youtube.com/watch?v=fixture");
 
-  const box0 = page.locator(".dual-subs-box").first();
-  await expect(page.locator("#dual-subs-layer")).toBeAttached({
+  const box0 = page.locator(".uds-box").first();
+  await expect(page.locator("#uds-layer")).toBeAttached({
     timeout: 10000,
   });
   await page.evaluate(() =>
@@ -398,8 +397,8 @@ test("refresh with default-on captions refetches a single already-selected track
 
   await page.goto("https://www.youtube.com/watch?v=fixture&singleTrack=1");
 
-  const box0 = page.locator(".dual-subs-box").first();
-  await expect(page.locator("#dual-subs-layer")).toBeAttached({
+  const box0 = page.locator(".uds-box").first();
+  await expect(page.locator("#uds-layer")).toBeAttached({
     timeout: 10000,
   });
   await expect(page.locator(".ytp-subtitles-button")).toHaveAttribute(
@@ -495,8 +494,8 @@ test("Prime Video detail page discovers subtitle tracks and renders fetched capt
     "https://fe.primevideo.com/region/fe/detail/0SS3O1MC4E0TW4GF0V1E4KD06T?ref_=atv_plr_landingpage_play",
   );
 
-  const boxes = page.locator(".dual-subs-box");
-  await expect(page.locator("#dual-subs-layer")).toBeAttached({
+  const boxes = page.locator(".uds-box");
+  await expect(page.locator("#uds-layer")).toBeAttached({
     timeout: 10000,
   });
   await expect(boxes).toHaveCount(2);
@@ -517,7 +516,7 @@ test("Prime Video detail page discovers subtitle tracks and renders fetched capt
   await page.mouse.down();
   await page.mouse.move(10, 10);
   await expect(firstBox).toHaveAttribute("data-anchor", "video");
-  const glow = page.locator("#dual-subs-glow");
+  const glow = page.locator("#uds-glow");
   await expect(glow).toBeVisible();
   const glowBox = await glow.boundingBox();
   const videoBox = await page.locator("video").boundingBox();
@@ -584,7 +583,7 @@ test("Prime Video native-caption preference hides the native layer or enables th
   await page.goto(
     "https://fe.primevideo.com/region/fe/detail/0SS3O1MC4E0TW4GF0V1E4KD06T",
   );
-  await expect(page.locator("#dual-subs-layer")).toBeAttached({
+  await expect(page.locator("#uds-layer")).toBeAttached({
     timeout: 10000,
   });
 

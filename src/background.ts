@@ -11,7 +11,7 @@ chrome.runtime.onMessage.addListener(
     _sender,
     sendResponse: (response: FetchCaptionResponse) => void,
   ) => {
-    if (message?.type !== "dual-subs:fetchCaption") return false;
+    if (message?.type !== "uds:fetchCaption") return false;
     void (async () => {
       try {
         const url = new URL(message.url ?? "");

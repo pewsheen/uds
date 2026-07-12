@@ -15,7 +15,8 @@ entry points and high-cost pitfalls.
    [`$real-chrome-streaming-tests`](.agents/skills/real-chrome-streaming-tests/SKILL.md).
 
 Formatting is enforced by `pnpm format:check`; use `pnpm format` to apply the
-repository style.
+repository style. Keep the command table and the `scripts/` and `tests/live/`
+inventories in `README.md` synchronized with `package.json` and the files on disk.
 
 ## Architecture constraints
 

@@ -5,6 +5,7 @@
 import { chromium } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
+import { evidencePath } from "./evidence.mjs";
 
 const DIST = path.resolve("dist");
 const JSON3 = await readFile(
@@ -47,7 +48,7 @@ try {
     }
   } catch {}
 
-  await page.waitForSelector("#dual-subs-layer", {
+  await page.waitForSelector("#uds-layer", {
     state: "attached",
     timeout: 25000,
   });
@@ -58,7 +59,7 @@ try {
   let state = null;
   for (let i = 0; i < 30; i++) {
     state = await page.evaluate(() => {
-      const boxes = [...document.querySelectorAll(".dual-subs-box")];
+      const boxes = [...document.querySelectorAll(".uds-box")];
       return {
         ccPressed: document
           .querySelector(".ytp-subtitles-button")
@@ -74,7 +75,7 @@ try {
     await page.waitForTimeout(700);
   }
   log("state:", JSON.stringify(state, null, 2));
-  await page.screenshot({ path: path.resolve("scripts/pipeline.png") });
+  await page.screenshot({ path: evidencePath("pipeline.png") });
 
   const ok = state?.boxes?.some((b) => b.text && b.text.includes("fixture"));
   log(

@@ -29,10 +29,10 @@ export function createRenderer(doc: Document = document) {
     "@property --ds-angle{syntax:'<angle>';initial-value:0deg;inherits:false;}" +
     "@keyframes ds-spin{to{--ds-angle:360deg;}}" +
     "@keyframes ds-pulse{0%,100%{opacity:.82;}50%{opacity:1;}}" +
-    "#dual-subs-glow{position:fixed;pointer-events:none;display:none;border-radius:16px;z-index:2147483646;" +
+    "#uds-glow{position:fixed;pointer-events:none;display:none;border-radius:16px;z-index:2147483646;" +
     "box-shadow:inset 0 0 0 2px rgba(255,255,255,.14),inset 0 0 28px 6px rgba(139,92,246,.45),inset 0 0 72px 16px rgba(34,211,238,.22);" +
     "animation:ds-pulse 2.6s ease-in-out infinite;}" +
-    "#dual-subs-glow .ds-ring{position:absolute;inset:0;border-radius:16px;padding:2.5px;" +
+    "#uds-glow .ds-ring{position:absolute;inset:0;border-radius:16px;padding:2.5px;" +
     "background:conic-gradient(from var(--ds-angle),#ff3b6b,#ff8a3d,#ffd23d,#3ddc84,#22d3ee,#3b82f6,#8b5cf6,#ec4899,#ff3b6b);" +
     "-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;" +
     "animation:ds-spin 6s linear infinite;}";
@@ -41,13 +41,13 @@ export function createRenderer(doc: Document = document) {
     if (!layer) return null;
     if (!glowStyle) {
       glowStyle = doc.createElement("style");
-      glowStyle.id = "dual-subs-glow-style";
+      glowStyle.id = "uds-glow-style";
       glowStyle.textContent = GLOW_CSS;
       doc.documentElement.appendChild(glowStyle);
     }
     if (!glow) {
       glow = doc.createElement("div");
-      glow.id = "dual-subs-glow";
+      glow.id = "uds-glow";
       const ring = doc.createElement("div");
       ring.className = "ds-ring";
       glow.appendChild(ring);
@@ -65,7 +65,7 @@ export function createRenderer(doc: Document = document) {
         : doc.body;
     if (!layer) {
       layer = doc.createElement("div");
-      layer.id = "dual-subs-layer";
+      layer.id = "uds-layer";
       layer.style.cssText =
         "position:fixed;inset:0;pointer-events:none;z-index:2147483647;";
       host.appendChild(layer);
@@ -81,7 +81,7 @@ export function createRenderer(doc: Document = document) {
   ): BoxView {
     const root = ensureLayer(target, fullscreenEl);
     const el = doc.createElement("div");
-    el.className = "dual-subs-box";
+    el.className = "uds-box";
     el.dataset.boxId = id;
     el.style.cssText =
       "position:fixed;max-width:80vw;text-align:center;padding:6px 12px;border-radius:10px;pointer-events:auto;cursor:grab;white-space:normal;user-select:none;-webkit-user-select:none;touch-action:none;";

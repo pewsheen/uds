@@ -2,16 +2,17 @@
 // using Playwright's bundled Chromium (channel: 'chromium'), which still honors
 // --load-extension (Google Chrome Stable 148 blocks that switch).
 //
-// Verifies: #dual-subs-layer is a child of <body> in normal mode, re-parents to
+// Verifies: #uds-layer is a child of <body> in normal mode, re-parents to
 // become a child of document.fullscreenElement on FS enter, and returns under
 // <body> on FS exit — on the real player, not a fixture.
 import { chromium } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
+import { evidencePath } from "./evidence.mjs";
 
 const DIST = path.resolve("dist");
 const VIDEO = "https://www.youtube.com/watch?v=aircAruvnKk";
-const SHOTS = path.resolve("scripts");
+
 const TIMEDTEXT_XML = await readFile(
   path.resolve("tests/smoke/fixtures/timedtext.xml"),
   "utf8",
@@ -19,7 +20,7 @@ const TIMEDTEXT_XML = await readFile(
 const log = (...a) => console.log(...a);
 
 function parentInfo() {
-  const layer = document.getElementById("dual-subs-layer");
+  const layer = document.getElementById("uds-layer");
   if (!layer) return { layer: false };
   const p = layer.parentElement;
   const fe = document.fullscreenElement;
@@ -32,7 +33,7 @@ function parentInfo() {
       : null;
   return {
     layer: true,
-    boxes: document.querySelectorAll(".dual-subs-box").length,
+    boxes: document.querySelectorAll(".uds-box").length,
     parent: desc(p),
     parentIsBody: p === document.body,
     fullscreenEl: desc(fe),
@@ -82,7 +83,7 @@ try {
   } catch {}
 
   // Wait for the extension to inject the overlay layer.
-  await page.waitForSelector("#dual-subs-layer", {
+  await page.waitForSelector("#uds-layer", {
     state: "attached",
     timeout: 25000,
   });
@@ -91,7 +92,7 @@ try {
 
   const before = await page.evaluate(parentInfo);
   log("BEFORE:", JSON.stringify(before));
-  await page.screenshot({ path: path.join(SHOTS, "fs-before.png") });
+  await page.screenshot({ path: evidencePath("fs-before.png") });
 
   // Enter fullscreen via trusted click on YouTube's fullscreen button.
   const fsBtn = page.locator(".ytp-fullscreen-button").first();
@@ -103,7 +104,7 @@ try {
   await page.waitForTimeout(1000);
   const during = await page.evaluate(parentInfo);
   log("DURING:", JSON.stringify(during));
-  await page.screenshot({ path: path.join(SHOTS, "fs-during.png") });
+  await page.screenshot({ path: evidencePath("fs-during.png") });
 
   // Exit fullscreen (programmatic; YouTube can swallow the Escape key).
   await page.evaluate(() => document.exitFullscreen?.());
@@ -113,7 +114,7 @@ try {
   await page.waitForTimeout(1000);
   const after = await page.evaluate(parentInfo);
   log("AFTER:", JSON.stringify(after));
-  await page.screenshot({ path: path.join(SHOTS, "fs-after.png") });
+  await page.screenshot({ path: evidencePath("fs-after.png") });
 
   const pass =
     before.layer &&

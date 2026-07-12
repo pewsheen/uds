@@ -1,0 +1,84 @@
+name: prepare store archive
+
+on:
+  workflow_dispatch:
+    inputs:
+      create_draft_release:
+        description: Create a GitHub draft release and attach the verified ZIP
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    name: verify and package
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    outputs:
+      version: ${{ steps.archive.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm verify:full
+
+      - name: Create and validate Chrome Web Store archive
+        id: archive
+        shell: bash
+        run: |
+          pnpm run pack -- --skip-build --out dist
+          version="$(node -e "const fs = require('fs'); const manifest = JSON.parse(fs.readFileSync('dist/manifest.json', 'utf8')); process.stdout.write(manifest.version)")"
+          archive="dist/uds-$version.zip"
+          checksum="$archive.sha256"
+
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "archive=$archive" >> "$GITHUB_OUTPUT"
+          echo "checksum=$checksum" >> "$GITHUB_OUTPUT"
+          echo "### Chrome Web Store archive" >> "$GITHUB_STEP_SUMMARY"
+          echo "\`uds-$version.zip\` passed the full verification suite and archive allow-list check." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload verified archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: uds-${{ steps.archive.outputs.version }}
+          path: |
+            ${{ steps.archive.outputs.archive }}
+            ${{ steps.archive.outputs.checksum }}
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 30
+
+  draft-release:
+    name: create draft release
+    if: ${{ inputs.create_draft_release }}
+    needs: package
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download verified archive
+        uses: actions/download-artifact@v4
+        with:
+          name: uds-${{ needs.package.outputs.version }}
+          path: release
+
+      - name: Create GitHub draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.package.outputs.version }}
+        shell: bash
+        run: |
+          archive="release/uds-$VERSION.zip"
+          checksum="$archive.sha256"
+          gh release create "v$VERSION" "$archive" "$checksum" \
+            --draft \
+            --target "$GITHUB_SHA" \
+            --title "UDS v$VERSION" \
+            --notes "Verified Chrome Web Store archive for UDS v$VERSION."

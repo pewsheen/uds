@@ -73,9 +73,7 @@ page.on("console", (m) => {
 page.on("pageerror", (e) => console.log("[pageerror]", e.message));
 
 const box0 = () =>
-  page.evaluate(
-    () => document.querySelector(".dual-subs-box")?.textContent ?? "",
-  );
+  page.evaluate(() => document.querySelector(".uds-box")?.textContent ?? "");
 const ccPressed = () =>
   page.evaluate(
     () =>
@@ -180,8 +178,8 @@ try {
     t: document.querySelector("video")?.currentTime,
     paused: document.querySelector("video")?.paused,
     ad: !!document.querySelector(".ad-showing, .ytp-ad-player-overlay"),
-    layer: !!document.querySelector("#dual-subs-layer"),
-    boxes: [...document.querySelectorAll(".dual-subs-box")].map((b) => ({
+    layer: !!document.querySelector("#uds-layer"),
+    boxes: [...document.querySelectorAll(".uds-box")].map((b) => ({
       text: b.textContent,
       html: b.innerHTML.slice(0, 120),
       display: getComputedStyle(b).display,

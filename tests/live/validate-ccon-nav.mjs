@@ -6,7 +6,7 @@
 // shows the CURRENT video's captions (stamped v=<id>) — not stale text, not empty, not a
 // neighbour's. Routes timedtext to a stamped json3 (real bodies
 // are pot-gated). Sets localStorage.dualSubsDebug=1 so the build's [uds.*] boundary logs
-// are captured and dumped to scripts/_ccon-nav.log on failure.
+// are captured and dumped to test-results/live/_ccon-nav.log on failure.
 //
 // Guards the fix for two root causes: (C1) a plain `en` box dropping an `en:asr` capture
 // (src/core/track-select.ts captureMatchesBox), and (C2) the new video's early capture
@@ -14,6 +14,7 @@
 // retention + content video-id gate).
 import { chromium } from "@playwright/test";
 import path from "node:path";
+import { evidencePath } from "./evidence.mjs";
 
 const DIST = path.resolve("dist");
 const START = "https://www.youtube.com/watch?v=aircAruvnKk";
@@ -48,13 +49,13 @@ page.on("console", (m) => {
 
 const boxText = () =>
   page.evaluate(() =>
-    [...document.querySelectorAll(".dual-subs-box")].map((b) => b.textContent),
+    [...document.querySelectorAll(".uds-box")].map((b) => b.textContent),
   );
 const attrId = () =>
   page.evaluate(() => {
     try {
       return (
-        JSON.parse(document.documentElement.getAttribute("data-dual-subs-pr"))
+        JSON.parse(document.documentElement.getAttribute("data-uds-pr"))
           ?.videoDetails?.videoId ?? null
       );
     } catch {
@@ -65,7 +66,7 @@ const attrLangs = () =>
   page.evaluate(() => {
     try {
       return (
-        JSON.parse(document.documentElement.getAttribute("data-dual-subs-pr"))
+        JSON.parse(document.documentElement.getAttribute("data-uds-pr"))
           ?.captions?.playerCaptionsTracklistRenderer?.captionTracks ?? []
       ).map((t) => t.languageCode);
     } catch {
@@ -252,7 +253,7 @@ try {
   if (fails.length)
     await import("node:fs").then((fs) =>
       fs.writeFileSync(
-        path.resolve("scripts/_ccon-nav.log"),
+        evidencePath("_ccon-nav.log"),
         uds
           .map(
             (e) =>
@@ -277,14 +278,14 @@ try {
     "\n" +
       (pass
         ? "✅ PASS — every box showed the current video after nav (CC on)"
-        : "❌ FAIL — see scripts/_ccon-nav.log for the boundary trace"),
+        : "❌ FAIL — see test-results/live/_ccon-nav.log for the boundary trace"),
   );
   process.exitCode = pass ? 0 : 1;
 } catch (e) {
   log("❌ ERROR", e.message);
   try {
     await page.screenshot({
-      path: path.resolve("scripts/_ccon-nav-error.png"),
+      path: evidencePath("_ccon-nav-error.png"),
     });
   } catch {}
   process.exitCode = 1;

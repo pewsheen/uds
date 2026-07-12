@@ -9,6 +9,7 @@
 //      symptom #2: subs didn't show until CC toggle / reload).
 import { chromium } from "@playwright/test";
 import path from "node:path";
+import { evidencePath } from "./evidence.mjs";
 
 const DIST = path.resolve("dist");
 const VIDEO = "https://www.youtube.com/watch?v=aircAruvnKk";
@@ -32,7 +33,7 @@ const ctx = await chromium.launchPersistentContext("", {
 
 const videoIdOfAttr = () =>
   ctx.pages()[0].evaluate(() => {
-    const raw = document.documentElement.getAttribute("data-dual-subs-pr");
+    const raw = document.documentElement.getAttribute("data-uds-pr");
     if (!raw) return null;
     try {
       return JSON.parse(raw)?.videoDetails?.videoId ?? null;
@@ -45,9 +46,7 @@ const boxText = () =>
   ctx
     .pages()[0]
     .evaluate(() =>
-      [...document.querySelectorAll(".dual-subs-box")].map(
-        (b) => b.textContent,
-      ),
+      [...document.querySelectorAll(".uds-box")].map((b) => b.textContent),
     );
 
 // A pre-roll ad loads as a SEPARATE video first: the player API, currentTime and track
@@ -200,7 +199,7 @@ try {
     prevId = id;
   }
 
-  await page.screenshot({ path: path.resolve("scripts/nav.png") });
+  await page.screenshot({ path: evidencePath("nav.png") });
   const pass = navsVerified >= 1 && captionsReloaded;
   log(
     pass
@@ -211,9 +210,7 @@ try {
 } catch (e) {
   log("❌ ERROR:", e.message);
   try {
-    await ctx
-      .pages()[0]
-      .screenshot({ path: path.resolve("scripts/nav-error.png") });
+    await ctx.pages()[0].screenshot({ path: evidencePath("nav-error.png") });
   } catch {}
   process.exitCode = 1;
 } finally {

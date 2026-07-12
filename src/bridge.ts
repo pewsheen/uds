@@ -11,7 +11,7 @@ import type {
 } from "./providers/types";
 import { youtubeProvider } from "./providers/youtube";
 
-const ATTR = "data-dual-subs-pr";
+const ATTR = "data-uds-pr";
 const dlog = (...args: unknown[]) => {
   try {
     if (localStorage.getItem("dualSubsDebug") === "1")

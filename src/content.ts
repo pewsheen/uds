@@ -51,7 +51,7 @@ function tracksFromResponse(pr: PlayerResponse): CaptionTrack[] {
 // `ytInitialPlayerResponse` is a page (main-world) global. A content script runs in an
 // isolated world and cannot read it directly. The MAIN-world bridge content script
 // copies it into this DOM attribute for us to read.
-const BRIDGE_ATTR = "data-dual-subs-pr";
+const BRIDGE_ATTR = "data-uds-pr";
 const dlog = (...a: unknown[]) => {
   try {
     if (localStorage.getItem("dualSubsDebug") === "1")
@@ -105,8 +105,7 @@ async function main() {
   // Let the popup discover which caption languages this video offers. Gate on the
   // current video id so an SPA navigation can't serve the previous video's list.
   chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
-    if (!msg || (msg as { type?: string }).type !== "dual-subs:getTracks")
-      return;
+    if (!msg || (msg as { type?: string }).type !== "uds:getTracks") return;
     void (async () => {
       const tracks = await findTracksFor(parseWatchId(location.href), 40);
       sendResponse(
@@ -243,7 +242,7 @@ async function main() {
     void (async () => {
       try {
         const res = (await chrome.runtime.sendMessage({
-          type: "dual-subs:fetchCaption",
+          type: "uds:fetchCaption",
           url: d.url,
         })) as
           | { ok?: boolean; body?: string; error?: string; status?: number }

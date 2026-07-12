@@ -1,10 +1,4 @@
-/* RAIMEI popup adaptation
-   Original cyberpunk design system supplied in RAIMEI.zip. The popup keeps
-   Dual Subtitles product identity while adopting RAIMEI's carbon, volt,
-   chamfer, HUD-label, and mechanical-motion language.
-*/
-
-@import url("https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=Rajdhani:wght@600;700&family=Share+Tech+Mono&display=swap");
+/* UDS popup: carbon, neon, chamfered HUD, and mechanical-motion visual language. */
 
 :root {
   color-scheme: dark;
@@ -35,9 +29,9 @@
   --focus-ring: 0 0 0 2px var(--bg-page), 0 0 0 4px var(--cyan-5);
   --glow-volt:
     0 0 0 1px rgba(223, 245, 0, 0.55), 0 0 14px rgba(223, 245, 0, 0.28);
-  --font-display: "Rajdhani", "Arial Narrow", sans-serif;
-  --font-body: "Chakra Petch", system-ui, sans-serif;
-  --font-mono: "Share Tech Mono", ui-monospace, monospace;
+  --font-display: "Arial Narrow", "Bahnschrift Condensed", sans-serif;
+  --font-body: "Bahnschrift", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "Cascadia Mono", "SFMono-Regular", Consolas, monospace;
   --ease-snap: cubic-bezier(0.2, 0, 0, 1);
   --dur-fast: 80ms;
   --dur-med: 140ms;

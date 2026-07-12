@@ -18,7 +18,7 @@ function queryTracks(): Promise<TrackInfo[]> {
       }
       chrome.tabs.sendMessage(
         id,
-        { type: "dual-subs:getTracks" },
+        { type: "uds:getTracks" },
         (resp: unknown) => {
           if (chrome.runtime.lastError || !Array.isArray(resp)) {
             resolve([]);

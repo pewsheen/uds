@@ -6,6 +6,8 @@ These instructions apply to the entire repository.
 
 - Use pnpm 11.11.0, as pinned by `package.json`.
 - Treat `pnpm-lock.yaml` as the canonical lockfile.
+- Keep the command table and the `scripts/` and `tests/live/` inventories in
+  `README.md` synchronized with `package.json` and the files on disk.
 - Run `pnpm format` after editing supported source or documentation files.
 - Do not hand-edit generated output under `dist/`, `reports/`, or
   `test-results/`.

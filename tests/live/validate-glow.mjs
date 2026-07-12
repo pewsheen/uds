@@ -2,6 +2,7 @@
 // verify it renders for a PAGE-anchor target (whole viewport) — the inner-glow case.
 import { chromium } from "@playwright/test";
 import path from "node:path";
+import { evidencePath } from "./evidence.mjs";
 
 const DIST = path.resolve("dist");
 const JSON3 = JSON.stringify({
@@ -39,13 +40,10 @@ try {
     }
   } catch {}
 
-  const box = page.locator(".dual-subs-box").first();
+  const box = page.locator(".uds-box").first();
   await box.waitFor({ state: "visible", timeout: 25000 });
   await page.waitForFunction(
-    () =>
-      [...document.querySelectorAll(".dual-subs-box")].some(
-        (b) => b.textContent,
-      ),
+    () => [...document.querySelectorAll(".uds-box")].some((b) => b.textContent),
     null,
     { timeout: 25000 },
   );
@@ -60,18 +58,18 @@ try {
   await page.mouse.move(120, vp.height - 80, { steps: 8 });
   await page.waitForTimeout(300);
   const glow = await page.evaluate(() => {
-    const g = document.getElementById("dual-subs-glow");
+    const g = document.getElementById("uds-glow");
     if (!g) return null;
     const r = g.getBoundingClientRect();
     return {
       display: g.style.display,
       w: Math.round(r.width),
       h: Math.round(r.height),
-      anchor: document.querySelector(".dual-subs-box")?.dataset.anchor,
+      anchor: document.querySelector(".uds-box")?.dataset.anchor,
     };
   });
   console.log("glow during drag:", JSON.stringify(glow));
-  await page.screenshot({ path: path.resolve("scripts/glow.png") });
+  await page.screenshot({ path: evidencePath("glow.png") });
   await page.mouse.up();
 
   const ok = glow && glow.display === "block" && glow.w > vp.width * 0.8;

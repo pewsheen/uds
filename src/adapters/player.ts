@@ -20,7 +20,7 @@ function areaOf(el: Element): number {
 }
 
 function dataNumber(video: HTMLVideoElement, key: string): number | null {
-  const raw = video.getAttribute?.(`data-dual-subs-${key}`);
+  const raw = video.getAttribute?.(`data-uds-${key}`);
   if (!raw) return null;
   const value = Number(raw);
   return Number.isFinite(value) ? value : null;

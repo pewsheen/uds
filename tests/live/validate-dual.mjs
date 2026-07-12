@@ -3,6 +3,7 @@
 // We intercept timedtext and return distinct cues per language so we can tell them apart.
 import { chromium } from "@playwright/test";
 import path from "node:path";
+import { evidencePath } from "./evidence.mjs";
 
 const DIST = path.resolve("dist");
 const VIDEO =
@@ -58,8 +59,8 @@ try {
       window.ytInitialPlayerResponse?.captions?.playerCaptionsTracklistRenderer
         ?.captionTracks || []
     ).map((t) => t.languageCode),
-    bridgeAttr: !!document.documentElement.getAttribute("data-dual-subs-pr"),
-    layer: !!document.getElementById("dual-subs-layer"),
+    bridgeAttr: !!document.documentElement.getAttribute("data-uds-pr"),
+    layer: !!document.getElementById("uds-layer"),
   }));
   log("PRE-CHECK:", JSON.stringify(pre, null, 2));
 
@@ -70,7 +71,7 @@ try {
         window.ytInitialPlayerResponse?.captions
           ?.playerCaptionsTracklistRenderer?.captionTracks || []
       ).map((t) => t.languageCode + (t.kind ? "/" + t.kind : "")),
-      boxes: [...document.querySelectorAll(".dual-subs-box")].map(
+      boxes: [...document.querySelectorAll(".uds-box")].map(
         (b) => b.textContent,
       ),
     }));
@@ -79,7 +80,7 @@ try {
   }
   log("available tracks:", JSON.stringify(state.available));
   log("box texts:", JSON.stringify(state.boxes));
-  await page.screenshot({ path: path.resolve("scripts/dual.png") });
+  await page.screenshot({ path: evidencePath("dual.png") });
 
   const filled = state.boxes.filter((t) => t && t.includes("CUE"));
   log(
