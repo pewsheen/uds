@@ -23,18 +23,18 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.61.1",
-    "@stryker-mutator/core": "^8.7.1",
-    "@stryker-mutator/vitest-runner": "^8.7.1",
+    "@stryker-mutator/core": "^9.6.1",
+    "@stryker-mutator/vitest-runner": "^9.6.1",
     "@types/chrome": "^0.0.287",
     "@types/node": "^22.20.1",
-    "esbuild": "^0.24.2",
+    "esbuild": "^0.25.12",
     "eslint": "^9.39.4",
     "fast-check": "^3.23.2",
     "jszip": "^3.10.1",
     "prettier": "^3.9.5",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.63.0",
-    "vitest": "^2.1.9"
+    "vitest": "^3.2.7"
   },
   "packageManager": "pnpm@11.11.0+sha512.4463f65fd80ed80d69bc1d4bf163ee94f605c7380fc318bb5b2ebe15f8cd12d49c51a4d59e951b401e764d3b6ca751cbf51bc50ed7001a6bcb4935e684c34882"
 }
