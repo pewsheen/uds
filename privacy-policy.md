@@ -1,8 +1,6 @@
 # Privacy Policy for UDS
 
 - **Effective date:** 2026/07/13
-- **Developer:** pewsheen
-- **Contact:** git[_at_]pews.dev
 
 UDS displays two customizable subtitle tracks on supported YouTube and
 Prime Video pages. This policy explains the data handled for that single purpose.
@@ -65,4 +63,5 @@ hosted code.
 If handling practices change, this policy and Chrome Web Store disclosures will be
 updated, with a prominent user notice when required.
 
-Questions or privacy requests: git[_at_]pews.dev
+For privacy questions or requests, open an issue in the
+[UDS GitHub repository](https://github.com/pewsheen/uds/issues).
