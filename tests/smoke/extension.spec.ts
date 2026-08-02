@@ -74,6 +74,32 @@ async function routeFixtures(page: import("@playwright/test").Page) {
   });
 }
 
+async function setPopupToggle(
+  popup: import("@playwright/test").Page,
+  id: "enabled" | "native",
+  checked: boolean,
+) {
+  const input = popup.locator(`#${id}`);
+  await expect(input).toBeAttached();
+  if ((await input.isChecked()) !== checked) {
+    await popup.locator(`label:has(#${id})`).click();
+  }
+  if (checked) await expect(input).toBeChecked();
+  else await expect(input).not.toBeChecked();
+  await popup.waitForTimeout(250);
+}
+
+async function storedEnabled(
+  popup: import("@playwright/test").Page,
+): Promise<boolean | undefined> {
+  return popup.evaluate(async () => {
+    const stored = (await chrome.storage.sync.get("dualSubsSettings")) as {
+      dualSubsSettings?: { enabled?: boolean };
+    };
+    return stored.dualSubsSettings?.enabled;
+  });
+}
+
 test("injects, renders both boxes, syncs, drags", async () => {
   const page = await context.newPage();
   const errors: string[] = [];
@@ -238,7 +264,7 @@ test("SPA navigation to a new video swaps captions without a page reload", async
   expect(errors, errors.join("\n")).toHaveLength(0);
 });
 
-test("YouTube native-caption preference is applied by the provider", async () => {
+test("YouTube keeps original captions on when player CC is on and UDS is off", async () => {
   const page = await context.newPage();
   await routeFixtures(page);
   await page.goto("https://www.youtube.com/watch?v=native-fixture");
@@ -249,19 +275,84 @@ test("YouTube native-caption preference is applied by the provider", async () =>
   const id = await extensionIdFromContentScript(page);
   const popup = await context.newPage();
   await popup.goto(`chrome-extension://${id}/popup/popup.html`);
-  const nativeInput = popup.locator("#native");
-  const nativeToggle = popup.locator("label.check:has(#native)");
-  await expect(nativeInput).toBeAttached();
-  if (await nativeInput.isChecked()) await nativeToggle.click();
+  await setPopupToggle(popup, "enabled", true);
+  await setPopupToggle(popup, "native", true);
 
+  await page.evaluate(() =>
+    (window as unknown as { __setTime: (time: number) => void }).__setTime(1),
+  );
+  const firstBox = page.locator(".uds-box").first();
   const nativeCaption = page.locator(".ytp-caption-window-container");
-  await expect(nativeCaption).toHaveCSS("display", "none");
-  await nativeToggle.click();
+  await expect(firstBox).toContainText("Hello from the fixture");
   await expect(nativeCaption).toBeVisible();
   await expect(page.locator(".ytp-subtitles-button")).toHaveAttribute(
     "aria-pressed",
     "true",
   );
+
+  await setPopupToggle(popup, "enabled", false);
+  await expect.poll(() => storedEnabled(popup)).toBe(false);
+  await expect(firstBox).toHaveText("");
+  await expect(nativeCaption).toBeVisible();
+  await expect(page.locator(".ytp-subtitles-button")).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+
+  await popup.evaluate(() => chrome.storage.sync.clear());
+  await popup.close();
+  await page.close();
+});
+
+test("YouTube player CC gates outputs without changing popup toggles", async () => {
+  const page = await context.newPage();
+  await routeFixtures(page);
+  await page.goto("https://www.youtube.com/watch?v=player-toggle-fixture");
+  await expect(page.locator("#uds-layer")).toBeAttached({ timeout: 10000 });
+
+  const id = await extensionIdFromContentScript(page);
+  const popup = await context.newPage();
+  await popup.goto(`chrome-extension://${id}/popup/popup.html`);
+  await setPopupToggle(popup, "native", true);
+  await setPopupToggle(popup, "enabled", true);
+
+  await page.evaluate(() =>
+    (window as unknown as { __setTime: (time: number) => void }).__setTime(1),
+  );
+  const firstBox = page.locator(".uds-box").first();
+  const nativeCaption = page.locator(".ytp-caption-window-container");
+  await expect(firstBox).toContainText("Hello from the fixture");
+  await expect(nativeCaption).toBeVisible();
+  await expect(page.locator(".ytp-subtitles-button")).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+
+  await page.locator(".ytp-subtitles-button").click();
+  await expect.poll(() => storedEnabled(popup)).toBe(true);
+  await expect(firstBox).toHaveText("");
+  await expect(nativeCaption).toHaveCSS("display", "none");
+  await expect(nativeCaption).toHaveAttribute("hidden", "");
+  await expect(page.locator(".ytp-subtitles-button")).toHaveAttribute(
+    "aria-pressed",
+    "false",
+  );
+  await expect(popup.locator("#enabled")).toBeChecked();
+  await expect(popup.locator("#native")).toBeChecked();
+
+  await page.locator(".ytp-subtitles-button").click();
+  await expect.poll(() => storedEnabled(popup)).toBe(true);
+  await expect(firstBox).toContainText("Hello from the fixture", {
+    timeout: 5000,
+  });
+  await expect(nativeCaption).toBeVisible();
+  await expect(nativeCaption).not.toHaveAttribute("hidden", "");
+  await expect(page.locator(".ytp-subtitles-button")).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await expect(popup.locator("#enabled")).toBeChecked();
+  await expect(popup.locator("#native")).toBeChecked();
 
   await popup.evaluate(() => chrome.storage.sync.clear());
   await popup.close();
@@ -499,6 +590,9 @@ test("Prime Video detail page discovers subtitle tracks and renders fetched capt
     timeout: 10000,
   });
   await expect(boxes).toHaveCount(2);
+  await page.locator(".atvwebplayersdk-subtitleaudiomenu-button").click();
+  await page.locator("#en-us_Subtitle_Dialog_1").click();
+  await expect(page.locator("#en-us_Subtitle_Dialog_1")).toBeChecked();
   await page.evaluate(() =>
     (window as unknown as { __setTime: (t: number) => void }).__setTime(1),
   );
@@ -529,7 +623,7 @@ test("Prime Video detail page discovers subtitle tracks and renders fetched capt
   expect(errors, errors.join("\n")).toHaveLength(0);
 });
 
-test("Prime Video native-caption preference hides the native layer or enables the first configured language", async () => {
+test("Prime player subtitles gate outputs without changing popup toggles", async () => {
   const page = await context.newPage();
   await page.route(
     /https:\/\/(?:www|fe)\.primevideo\.com\/(?:region\/[^/]+\/)?detail\/.*/,
@@ -590,21 +684,59 @@ test("Prime Video native-caption preference hides the native layer or enables th
   const id = await extensionIdFromContentScript(page);
   const popup = await context.newPage();
   await popup.goto(`chrome-extension://${id}/popup/popup.html`);
-  await expect(popup.locator("#native")).toBeAttached();
-  const nativeToggle = popup.locator("label.check:has(#native)");
-  if (await popup.locator("#native").isChecked()) {
-    await nativeToggle.click();
-  }
+  await setPopupToggle(popup, "enabled", true);
+  await setPopupToggle(popup, "native", true);
 
+  const firstBox = page.locator(".uds-box").first();
   const nativeOverlay = page.locator(".atvwebplayersdk-captions-overlay");
+  const offRadio = page.locator("#off");
+  const englishRadio = page.locator("#en-us_Subtitle_Dialog_1");
+  await page.evaluate(() =>
+    (window as unknown as { __setTime: (time: number) => void }).__setTime(1),
+  );
+
+  // Popup preferences must not turn on the player's subtitles.
+  await expect(offRadio).toBeChecked();
+  await expect(firstBox).toHaveText("");
   await expect(nativeOverlay).toHaveCSS("display", "none");
 
-  await nativeToggle.click();
-  await expect(page.locator("#en-us_Subtitle_Dialog_1")).toBeChecked({
+  const combinedMenuButton = page.locator(
+    ".atvwebplayersdk-subtitleaudiomenu-button",
+  );
+  await combinedMenuButton.click();
+  await expect(page.locator("#subtitle-menu")).toBeVisible();
+  await englishRadio.click();
+  await expect(page.locator("#subtitle-menu")).toBeHidden();
+  await expect(englishRadio).toBeChecked();
+  await expect(firstBox).toContainText("Prime English caption", {
     timeout: 5000,
   });
   await expect(nativeOverlay).toBeVisible();
   await expect(nativeOverlay).toContainText("Native en-us");
+
+  // Each popup output switch is independent while player subtitles remain on.
+  await setPopupToggle(popup, "enabled", false);
+  await expect(englishRadio).toBeChecked();
+  await expect(firstBox).toHaveText("");
+  await expect(nativeOverlay).toBeVisible();
+
+  await setPopupToggle(popup, "enabled", true);
+  await setPopupToggle(popup, "native", false);
+  await expect(englishRadio).toBeChecked();
+  await expect(firstBox).toContainText("Prime English caption", {
+    timeout: 5000,
+  });
+  await expect(nativeOverlay).toHaveCSS("display", "none");
+
+  // Turning the player subtitles off gates both outputs without rewriting prefs.
+  await combinedMenuButton.click();
+  await expect(page.locator("#subtitle-menu")).toBeVisible();
+  await offRadio.click();
+  await expect(offRadio).toBeChecked();
+  await expect(firstBox).toHaveText("");
+  await expect(nativeOverlay).toHaveCSS("display", "none");
+  await expect(popup.locator("#enabled")).toBeChecked();
+  await expect(popup.locator("#native")).not.toBeChecked();
 
   await popup.evaluate(() => chrome.storage.sync.clear());
   await popup.close();

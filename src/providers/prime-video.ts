@@ -15,7 +15,6 @@ import { readResponseTextLimited } from "../adapters/response-text";
 
 const RESPONSE_HINT =
   /(?:getplaybackresources|playback|subtitle|caption|timedtext|ttml|webvtt|dfxp|\.vtt|\.ttml|\.ttml2)/i;
-const SUBTITLE_MENU_BUTTON = ".atvwebplayersdk-subtitleaudiomenu-button";
 const SUBTITLE_RADIOS = 'input[type="radio"][name="subtitle"]';
 const NATIVE_CAPTION_SELECTOR = ".atvwebplayersdk-captions-overlay";
 
@@ -28,7 +27,7 @@ function createPrimeVideoProvider(hooks: ProviderHooks) {
   let tracks: CaptionTrackRaw[] = [];
   let tracksKey = "";
   let videoId = parseWatchId(location.href);
-  let nativeRequestGeneration = 0;
+  let lastPublishedPlayerCc: boolean | undefined;
   const hideNative = document.createElement("style");
   hideNative.textContent = `${NATIVE_CAPTION_SELECTOR} { display: none !important; }`;
 
@@ -128,51 +127,34 @@ function createPrimeVideoProvider(hooks: ProviderHooks) {
     );
   }
 
-  function pickNativeSubtitleRadio(
-    radios: HTMLInputElement[],
-    languageCode?: string,
-  ): HTMLInputElement | undefined {
-    const available = radios.filter(
-      (radio) => radio.id.toLowerCase() !== "off",
-    );
-    if (available.length === 0) return undefined;
-    const wanted = languageCode?.toLowerCase().replace(/^asr:/, "");
-    if (!wanted) return available[0];
-    const codeFor = (radio: HTMLInputElement) =>
-      radio.id.split("_")[0]!.toLowerCase();
-    return (
-      available.find((radio) => codeFor(radio) === wanted) ??
-      available.find(
-        (radio) => codeFor(radio).split("-")[0] === wanted.split("-")[0],
-      ) ??
-      available[0]
-    );
-  }
-
-  async function showNativeCaptions(request: LoadRequest): Promise<void> {
-    const generation = ++nativeRequestGeneration;
-    for (let attempt = 0; attempt < 20; attempt++) {
-      if (generation !== nativeRequestGeneration) return;
-      const radios = nativeSubtitleRadios();
-      const selected = radios.find((radio) => radio.checked);
-      if (selected && selected.id.toLowerCase() !== "off") return;
-      const target = pickNativeSubtitleRadio(radios, request.languageCode);
-      if (target) {
-        target.click();
-        return;
-      }
-      document.querySelector<HTMLElement>(SUBTITLE_MENU_BUTTON)?.click();
-      await new Promise((resolve) => setTimeout(resolve, 100));
+  function reportPlayerCcState(force = false): boolean {
+    const selected = nativeSubtitleRadios().find((radio) => radio.checked);
+    if (!selected) return false;
+    const enabled = selected.id.toLowerCase() !== "off";
+    if (force || enabled !== lastPublishedPlayerCc) {
+      lastPublishedPlayerCc = enabled;
+      hooks.publishPlayerCcState(enabled);
     }
+    return true;
   }
 
-  async function setNativeCaptions(
-    request: NativeCaptionRequest,
-  ): Promise<void> {
-    if (request.hidden && !hideNative.isConnected)
+  function observePlayerCcChange(event: Event): void {
+    if (!event.isTrusted) return;
+    const target = event.target;
+    if (
+      !(target instanceof HTMLInputElement) ||
+      target.type !== "radio" ||
+      target.name !== "subtitle"
+    )
+      return;
+    setTimeout(() => reportPlayerCcState(), 0);
+  }
+
+  function setNativeCaptions(request: NativeCaptionRequest): void {
+    const hidden = request.hidden || !request.playerCcEnabled;
+    if (hidden && !hideNative.isConnected)
       document.documentElement.appendChild(hideNative);
-    else if (!request.hidden && hideNative.isConnected) hideNative.remove();
-    if (request.enable) await showNativeCaptions(request);
+    else if (!hidden && hideNative.isConnected) hideNative.remove();
   }
 
   function processResponse(url: string, body: string): void {
@@ -190,15 +172,21 @@ function createPrimeVideoProvider(hooks: ProviderHooks) {
   return {
     name: "prime-video",
     start: () => {
+      document.addEventListener("change", observePlayerCcChange, true);
       setInterval(() => {
+        reportPlayerCcState();
         const next = parseWatchId(location.href);
         if (next === videoId) return;
         videoId = next;
         tracks = [];
         tracksKey = "";
+        lastPublishedPlayerCc = undefined;
       }, 1000);
     },
-    onReady: publishSnapshot,
+    onReady: () => {
+      publishSnapshot();
+      reportPlayerCcState(true);
+    },
     load,
     setNativeCaptions,
     shouldReadFetchResponse: (url: string, response: Response) => {

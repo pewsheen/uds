@@ -28,11 +28,13 @@ export type LoadRequest = { languageCode?: string; asr?: boolean };
 export type NativeCaptionRequest = LoadRequest & {
   hidden: boolean;
   enable: boolean;
+  playerCcEnabled: boolean;
 };
 export type BridgeMessage = {
   __dualSubsReady?: boolean;
   __dualSubsLoad?: LoadRequest;
   __dualSubsNative?: NativeCaptionRequest;
+  __dualSubsRefetch?: boolean;
 };
 
 export type ProviderHooks = {
@@ -41,6 +43,7 @@ export type ProviderHooks = {
   notifyTracksChanged: () => void;
   publish: (response: PlayerResponse) => boolean;
   requestCaptionFetch?: (url: string, meta?: CaptionMeta) => void;
+  publishPlayerCcState: (enabled: boolean) => void;
 };
 
 export type SiteProvider = {
@@ -48,6 +51,7 @@ export type SiteProvider = {
   start: () => void;
   onReady?: () => void;
   load: (request: LoadRequest) => void | Promise<void>;
+  refetchCaptions?: () => void | Promise<void>;
   setNativeCaptions?: (request: NativeCaptionRequest) => void | Promise<void>;
   shouldReadFetchResponse: (url: string, response: Response) => boolean;
   shouldReadXhrResponse: (url: string) => boolean;

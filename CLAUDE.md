@@ -38,8 +38,14 @@ inventories in `README.md` synchronized with `package.json` and the files on dis
   requested title and caption tracks are active before asserting.
 - Prime detail pages can contain a visible preview separate from the loaded playback
   timeline. Assert against the active, loaded player.
-- Prime's native-caption preference is provider-controlled: hide its captions overlay
-  when disabled, and select the first configured extension language when enabled.
+- Original-caption visibility is popup-controlled, but the provider's player
+  subtitle state is the master gate: YouTube's CC state or Prime's selected language
+  versus Off. UDS output is `player CC && UDS toggle`, and original output is
+  `player CC && original toggle`.
+- Let trusted player subtitle actions run natively. Never persist them into popup
+  preferences, and never let popup toggles click YouTube CC, select a Prime language,
+  or choose Prime Off. Keep extension-initiated caption loading unblocked and Prime's
+  combined subtitle/audio menu usable.
 - Playwright fixture tests and routed timed-text responses validate plumbing, not a
   signed-in production session.
 - Chrome may require the unpacked extension to be reloaded after every build.

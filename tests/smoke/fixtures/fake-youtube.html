@@ -56,10 +56,24 @@
       // YouTube doesn't update the latter on SPA navigation. Returns the CURRENT video.
       const mp = document.getElementById("movie_player");
       const cc = document.querySelector(".ytp-subtitles-button");
+      const nativeCaption = document.querySelector(
+        ".ytp-caption-window-container",
+      );
       let selectedTrack =
         playerResponse.captions.playerCaptionsTracklistRenderer
           .captionTracks[0];
       let ccOn = true;
+      function setNativeCaptions(next) {
+        ccOn = next;
+        cc.setAttribute("aria-pressed", ccOn ? "true" : "false");
+        nativeCaption.hidden = !ccOn;
+        if (ccOn && selectedTrack)
+          fetchTrack(
+            playerResponse.videoDetails.videoId,
+            selectedTrack.languageCode,
+          );
+      }
+      window.__setNativeCaptions = setNativeCaptions;
       mp.getPlayerResponse = () => playerResponse;
       mp.loadModule = () => {};
       mp.getOption = (_module, option) =>
@@ -83,13 +97,7 @@
           fetchTrack(playerResponse.videoDetails.videoId, next.languageCode);
       };
       cc.addEventListener("click", () => {
-        ccOn = !ccOn;
-        cc.setAttribute("aria-pressed", ccOn ? "true" : "false");
-        if (ccOn && selectedTrack)
-          fetchTrack(
-            playerResponse.videoDetails.videoId,
-            selectedTrack.languageCode,
-          );
+        setNativeCaptions(!ccOn);
       });
 
       // Set the NATIVE currentTime so the isolated-world content script (which reads the

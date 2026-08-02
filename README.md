@@ -14,7 +14,11 @@ outline, and per-display-mode position.
   Prime Video, and overlap avoidance.
 - Position memory for default, theater, fullscreen, and miniplayer modes.
 - Live popup settings without a page reload.
-- Optional native YouTube or Prime Video captions alongside the extension overlays.
+- Popup control for original YouTube or Prime Video captions.
+- Each player's subtitle state is a master gate: YouTube's CC button or Prime's
+  selected subtitle language versus Off. When the gate is on, UDS and original
+  captions independently follow their popup toggles. Popup changes never operate the
+  player controls, and Prime's combined subtitle/audio menu remains available.
 - SPA navigation detection so tracks refresh when the site swaps videos.
 
 ## Requirements
@@ -43,8 +47,10 @@ Then:
 2. Enable **Developer mode**.
 3. Select **Load unpacked**.
 4. Choose this repository's `dist/` directory.
-5. Open a captioned YouTube or Prime Video title and configure both tracks from the
-   extension popup.
+5. Open a captioned YouTube or Prime Video title and configure both tracks and the
+   original-caption display from the extension popup. The player's subtitle state
+   gates both caption systems; when it is on, each system follows its own popup
+   toggle.
 
 After rebuilding, select **Reload** on the extension card before retesting.
 
@@ -163,9 +169,12 @@ replacement.
 
 Prime Video exposes several response shapes and may show a muted preview video on a
 detail page. The provider merges partial track records and the player adapter waits
-for the visible, loaded playback timeline. When native captions are requested and
-Prime's player is set to Off, the provider enables the native track matching the
-first configured extension language (falling back to the first available track).
+for the visible, loaded playback timeline. On both providers, the player's subtitle
+state is a transient master gate: Off hides both output systems, while On lets the
+UDS and original-caption popup toggles control their outputs independently. Popup
+changes never operate the player subtitle controls or rewrite their selected state.
+Prime's combined subtitle/audio menu remains available for subtitle selection and
+audio controls.
 
 ## Project guidance
 

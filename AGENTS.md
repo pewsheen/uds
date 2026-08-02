@@ -42,8 +42,28 @@ Follow it after deterministic tests pass.
 
 - Use real Chrome when the task names Chrome or requires the user's existing signed-in
   session.
-- For Prime native-caption changes, verify both states: unchecked hides the provider
-  overlay, while checked enables a native track and leaves the overlay visible.
+- Treat each provider's player subtitle state as a master gate: YouTube's CC button,
+  or Prime's selected subtitle language versus Off. Effective UDS subtitles are
+  `player CC && UDS toggle`; effective original subtitles are
+  `player CC && original toggle`. Never persist player CC state into either popup
+  preference.
+- Popup toggles must never click a player's subtitle control, select a Prime subtitle
+  language, or choose Prime Off. On Prime, they only control UDS rendering and the
+  original-caption overlay's CSS visibility. Keep the combined subtitle/audio menu
+  usable.
+- Preserve this truth table:
+
+  | Player subtitles | UDS toggle | Original toggle | UDS output | Original output |
+  | ---------------- | ---------- | --------------- | ---------- | --------------- |
+  | Off              | Off        | Off             | Off        | Off             |
+  | Off              | Off        | On              | Off        | Off             |
+  | Off              | On         | Off             | Off        | Off             |
+  | Off              | On         | On              | Off        | Off             |
+  | On               | Off        | Off             | Off        | Off             |
+  | On               | Off        | On              | Off        | On              |
+  | On               | On         | Off             | On         | Off             |
+  | On               | On         | On              | On         | On              |
+
 - Use the available browser-control skill and read its current instructions before
   interacting with Chrome.
 - Do not replace a requested signed-in Chrome check with Playwright, web search, or a

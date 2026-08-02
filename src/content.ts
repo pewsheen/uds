@@ -19,6 +19,7 @@ import { decideMountTarget } from "./core/mount";
 import { pickTrack, captureMatchesBox } from "./core/track-select";
 import { parseCaptions } from "./core/parse";
 import { parseWatchId, videoChanged } from "./core/navigation";
+import { decideSubtitleVisibility } from "./core/subtitle-visibility";
 import { createStorageAdapter } from "./adapters/storage";
 import { createPlayerAdapter } from "./adapters/player";
 import { createRenderer, type BoxView } from "./adapters/renderer";
@@ -124,6 +125,19 @@ async function main() {
   });
 
   const settings: Settings = await store.load();
+  let playerCcEnabled =
+    document
+      .querySelector(".ytp-subtitles-button")
+      ?.getAttribute("aria-pressed") !== "false";
+  let applyPlayerCcState = (enabled: boolean) => {
+    playerCcEnabled = enabled;
+  };
+  window.addEventListener("message", (event: MessageEvent) => {
+    if (event.source !== window) return;
+    const data = event.data as { __dualSubsPlayerState?: boolean } | null;
+    if (typeof data?.__dualSubsPlayerState !== "boolean") return;
+    applyPlayerCcState(data.__dualSubsPlayerState);
+  });
   // `tracks` is the CURRENT video's caption tracks. It is refreshed on every supported
   // site navigation, so it must be mutable and outlive any single video -- the
   // caption listener and loader both read it.
@@ -288,8 +302,15 @@ async function main() {
   // current video's `tracks` are known — replaying earlier would match captured cues
   // against an empty track list and silently drop them.
 
+  const subtitleVisibility = () =>
+    decideSubtitleVisibility(
+      playerCcEnabled,
+      settings.enabled,
+      settings.nativeSubtitles === true,
+    );
+
   function applyNativeCaptionPreference() {
-    const showNative = settings.enabled && settings.nativeSubtitles === true;
+    const showNative = subtitleVisibility().original;
     const configuredBox = settings.boxes.find((box) => box.lang);
     const nativeTrack = configuredBox
       ? pickTrack(tracks, configuredBox.lang)
@@ -297,14 +318,16 @@ async function main() {
     window.postMessage(
       {
         __dualSubsNative: {
-          hidden: settings.enabled && !showNative,
+          hidden: !showNative,
           enable: showNative,
+          playerCcEnabled,
           languageCode: nativeTrack?.languageCode ?? configuredBox?.lang,
         },
       },
       "*",
     );
   }
+  applyNativeCaptionPreference();
 
   function render() {
     const fsEl = player.fullscreenEl();
@@ -314,10 +337,12 @@ async function main() {
     );
     const t = player.currentTime();
     const clockReady = player.clockReady();
+    const showUds = subtitleVisibility().uds;
     for (const box of settings.boxes) {
-      const res = clockReady
-        ? tick(tickStates[box.id]!, t, cuesByBox[box.id] ?? [])
-        : tick(tickStates[box.id]!, 0, []);
+      const res =
+        clockReady && showUds
+          ? tick(tickStates[box.id]!, t, cuesByBox[box.id] ?? [])
+          : tick(tickStates[box.id]!, 0, []);
       tickStates[box.id] = res.state;
       if (res.renderCommand) views[box.id]!.setText(res.renderCommand.text);
       if (draggingId !== box.id) {
@@ -337,20 +362,11 @@ async function main() {
   // Load captions one language at a time: the player only fetches one track at once,
   // so requesting both simultaneously loses one. Retry until each box has cues.
   let loadGen = 0;
-  function clickCCifOff() {
-    const btn = document.querySelector<HTMLElement>(".ytp-subtitles-button");
-    if (btn && btn.getAttribute("aria-pressed") === "false") btn.click();
-  }
   async function toggleCCForRefetch(gen: number): Promise<boolean> {
-    const btn = document.querySelector<HTMLElement>(".ytp-subtitles-button");
-    if (!btn || btn.getAttribute("aria-pressed") !== "true") return false;
     dlog("startLoading gen", gen, "nudge → cc toggle");
-    btn.click();
-    await sleep(600);
-    if (gen !== loadGen || !settings.enabled) return false;
-    btn.click();
-    await sleep(1600);
-    return true;
+    window.postMessage({ __dualSubsRefetch: true }, "*");
+    await sleep(2200);
+    return gen === loadGen && subtitleVisibility().uds;
   }
   const isStuck = () =>
     settings.boxes.some(
@@ -369,13 +385,12 @@ async function main() {
     );
     for (
       let round = 0;
-      round < 10 && gen === loadGen && settings.enabled;
+      round < 10 && gen === loadGen && subtitleVisibility().uds;
       round++
     ) {
-      clickCCifOff();
       let pending = false;
       for (const box of settings.boxes) {
-        if (gen !== loadGen || !settings.enabled) return;
+        if (gen !== loadGen || !subtitleVisibility().uds) return;
         const want = pickTrack(tracks, box.lang);
         if (!want) continue;
         if ((cuesByBox[box.id]?.length ?? 0) > 0) continue;
@@ -457,6 +472,7 @@ async function main() {
     if (next) applySettings(next);
   });
   function applySettings(next: Settings) {
+    const wasUdsVisible = subtitleVisibility().uds;
     settings.enabled = next.enabled;
     settings.nativeSubtitles = next.nativeSubtitles;
     let langChanged = false;
@@ -470,7 +486,8 @@ async function main() {
       box.style = nb.style;
       views[box.id]!.setStyle(styleToCss(nb.style));
     });
-    if (!settings.enabled) {
+    const showUds = subtitleVisibility().uds;
+    if (!showUds) {
       loadGen++; // cancel in-flight loading
       for (const box of settings.boxes) cuesByBox[box.id] = [];
       applyNativeCaptionPreference();
@@ -481,10 +498,25 @@ async function main() {
       // bridge still has the capture buffered, so ask it to replay; captureMatchesBox
       // re-routes it to the now-correct box. Without this, re-selecting a source the
       // player already loaded (e.g. off→on, or A→B→A) leaves the box empty.
-      if (langChanged) window.postMessage({ __dualSubsReady: true }, "*");
-      void startLoading();
+      if (langChanged || !wasUdsVisible)
+        window.postMessage({ __dualSubsReady: true }, "*");
+      if (langChanged || !wasUdsVisible) void startLoading();
     }
   }
+
+  applyPlayerCcState = (enabled) => {
+    const wasUdsVisible = subtitleVisibility().uds;
+    playerCcEnabled = enabled;
+    const showUds = subtitleVisibility().uds;
+    applyNativeCaptionPreference();
+    if (!showUds) {
+      loadGen++;
+      for (const box of settings.boxes) cuesByBox[box.id] = [];
+    } else if (!wasUdsVisible) {
+      window.postMessage({ __dualSubsReady: true }, "*");
+      void startLoading();
+    }
+  };
 
   // Per-video (re)initialization. Runs on first load and again on every SPA
   // navigation to a new video. `navGen` discards a load whose video was superseded
@@ -514,10 +546,8 @@ async function main() {
     // Now that tracks are known, ask the bridge to replay any caption responses it
     // captured before we were ready to match them (initial load + post-navigation).
     window.postMessage({ __dualSubsReady: true }, "*");
-    if (settings.enabled) {
-      applyNativeCaptionPreference();
-      void startLoading();
-    }
+    applyNativeCaptionPreference();
+    if (subtitleVisibility().uds) void startLoading();
   }
 
   window.addEventListener("message", (e: MessageEvent) => {

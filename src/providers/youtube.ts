@@ -26,14 +26,55 @@ export const youtubeProvider: SiteProviderFactory = {
 function createYouTubeProvider(hooks: ProviderHooks) {
   const hideNative = document.createElement("style");
   hideNative.textContent = `${NATIVE_CAPTION_SELECTORS} { display: none !important; }`;
+  let lastNativeRequest: NativeCaptionRequest | undefined;
+
+  function subtitleButton(): HTMLElement | null {
+    return document.querySelector<HTMLElement>(".ytp-subtitles-button");
+  }
+
+  function setNativeEngine(enabled: boolean): boolean {
+    const button = subtitleButton();
+    if (!button) return false;
+    const current = button.getAttribute("aria-pressed") === "true";
+    if (current === enabled) return true;
+    button.click();
+    return true;
+  }
+
+  function observePlayerToggle(event: MouseEvent): void {
+    if (!event.isTrusted) return;
+    const target = event.target;
+    if (
+      !(target instanceof Element) ||
+      !target.closest(".ytp-subtitles-button")
+    )
+      return;
+
+    // Let YouTube handle the trusted click. Read its resulting state on the next
+    // task so UDS follows the player without blocking or replacing native behavior.
+    setTimeout(() => {
+      const button = subtitleButton();
+      if (button)
+        hooks.publishPlayerCcState(
+          button.getAttribute("aria-pressed") === "true",
+        );
+    }, 0);
+  }
+
+  function reportPlayerState(): void {
+    const button = subtitleButton();
+    if (button)
+      hooks.publishPlayerCcState(
+        button.getAttribute("aria-pressed") === "true",
+      );
+  }
 
   function setNativeCaptions(request: NativeCaptionRequest): void {
-    if (request.hidden && !hideNative.isConnected)
+    lastNativeRequest = request;
+    const hidden = request.hidden || !request.playerCcEnabled;
+    if (hidden && !hideNative.isConnected)
       document.documentElement.appendChild(hideNative);
-    else if (!request.hidden && hideNative.isConnected) hideNative.remove();
-    if (!request.enable) return;
-    const button = document.querySelector<HTMLElement>(".ytp-subtitles-button");
-    if (button?.getAttribute("aria-pressed") === "false") button.click();
+    else if (!hidden && hideNative.isConnected) hideNative.remove();
   }
 
   function currentPlayerResponse(): PlayerResponse {
@@ -117,6 +158,7 @@ function createYouTubeProvider(hooks: ProviderHooks) {
   return {
     name: "youtube",
     start: () => {
+      document.addEventListener("click", observePlayerToggle, true);
       publishCurrent(parseWatchId(location.href));
       document.addEventListener("yt-navigate-finish", () => {
         hooks.debug(
@@ -126,7 +168,13 @@ function createYouTubeProvider(hooks: ProviderHooks) {
         publishCurrent(parseWatchId(location.href));
       });
     },
+    onReady: reportPlayerState,
     load,
+    refetchCaptions: async () => {
+      if (!setNativeEngine(false)) return;
+      await new Promise((resolve) => setTimeout(resolve, 600));
+      if (lastNativeRequest?.playerCcEnabled) setNativeEngine(true);
+    },
     setNativeCaptions,
     shouldReadFetchResponse: (url: string) => url.includes(TIMEDTEXT),
     shouldReadXhrResponse: (url: string) => url.includes(TIMEDTEXT),

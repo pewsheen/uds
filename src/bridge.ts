@@ -77,6 +77,8 @@ const provider = factories
         { __dualSubsFetchViaExtension: true, url, ...meta },
         "*",
       ),
+    publishPlayerCcState: (enabled) =>
+      window.postMessage({ __dualSubsPlayerState: enabled }, "*"),
   });
 
 provider?.start();
@@ -142,6 +144,10 @@ window.addEventListener("message", (event: MessageEvent) => {
   }
   if (data.__dualSubsNative) {
     void provider?.setNativeCaptions?.(data.__dualSubsNative);
+    return;
+  }
+  if (data.__dualSubsRefetch) {
+    void provider?.refetchCaptions?.();
     return;
   }
   const request = data.__dualSubsLoad;

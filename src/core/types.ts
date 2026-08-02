@@ -28,10 +28,12 @@ export type BoxConfig = {
   posByMode: Record<DisplayMode, Placement>;
 };
 export type Settings = {
+  // Persisted UDS popup preference. Effective visibility also requires the player
+  // subtitle state to be on.
   enabled: boolean;
   boxes: [BoxConfig, BoxConfig];
-  // When true, keep the provider's own caption layer visible. Prime Video also
-  // enables a native track matching the first configured extension language.
+  // Persisted original-caption popup preference. Effective visibility also requires
+  // the provider player's subtitle state to be on.
   nativeSubtitles?: boolean;
 };
 
