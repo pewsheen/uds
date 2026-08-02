@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "UDS - Dual Subtitles",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Two draggable subtitle tracks for YouTube and Prime Video, with player or fixed-page anchoring where supported.",
   "icons": {
     "16": "icons/icon16.png",
